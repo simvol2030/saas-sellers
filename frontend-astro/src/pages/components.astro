@@ -1,0 +1,234 @@
+---
+import Button from '../components/Button.astro';
+import Card from '../components/Card.astro';
+import Input from '../components/Input.astro';
+import Alert from '../components/Alert.astro';
+import Spinner from '../components/Spinner.astro';
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width" />
+		<title>Component Demo - Astro</title>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Component Library Demo</h1>
+			<p class="subtitle">Reusable Astro components with modern patterns</p>
+
+			<!-- Alerts Section -->
+			<section>
+				<h2>Alerts</h2>
+				<div class="grid">
+					<Alert type="info" dismissible>
+						<strong>Info:</strong> This is an informational message.
+					</Alert>
+					<Alert type="success">
+						<strong>Success:</strong> Operation completed successfully!
+					</Alert>
+					<Alert type="warning">
+						<strong>Warning:</strong> Please check your input.
+					</Alert>
+					<Alert type="error" dismissible>
+						<strong>Error:</strong> Something went wrong.
+					</Alert>
+				</div>
+			</section>
+
+			<!-- Buttons Section -->
+			<section>
+				<h2>Buttons</h2>
+				<div class="button-grid">
+					<div>
+						<h3>Variants</h3>
+						<div class="button-row">
+							<Button variant="primary">Primary</Button>
+							<Button variant="secondary">Secondary</Button>
+							<Button variant="danger">Danger</Button>
+							<Button disabled>Disabled</Button>
+						</div>
+					</div>
+					<div>
+						<h3>Sizes</h3>
+						<div class="button-row">
+							<Button size="sm">Small</Button>
+							<Button size="md">Medium</Button>
+							<Button size="lg">Large</Button>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Cards Section -->
+			<section>
+				<h2>Cards</h2>
+				<div class="grid">
+					<Card title="Basic Card">
+						<p>This is a basic card component with a title.</p>
+					</Card>
+					<Card title="Hover Card" hover>
+						<p>This card has a hover effect. Try hovering over it!</p>
+					</Card>
+					<Card padding="sm">
+						<p><strong>Small padding:</strong> Compact card layout.</p>
+					</Card>
+					<Card padding="lg">
+						<p><strong>Large padding:</strong> Spacious card layout.</p>
+					</Card>
+				</div>
+			</section>
+
+			<!-- Form Section -->
+			<section>
+				<h2>Form Demo</h2>
+				<Card title="User Registration">
+					<form>
+						<div class="form-grid">
+							<Input
+								label="Full Name"
+								name="name"
+								placeholder="Enter your name"
+								required
+							/>
+							<Input
+								label="Email Address"
+								type="email"
+								name="email"
+								placeholder="your@email.com"
+								required
+							/>
+							<Input
+								label="Password"
+								type="password"
+								name="password"
+								placeholder="Enter password"
+								required
+							/>
+						</div>
+						<div class="form-actions">
+							<Button type="submit" variant="primary">Submit Form</Button>
+						</div>
+					</form>
+				</Card>
+			</section>
+
+			<!-- Spinner Section -->
+			<section>
+				<h2>Loading Spinners</h2>
+				<div class="spinner-grid">
+					<div class="spinner-demo">
+						<Spinner size="sm" />
+						<span>Small</span>
+					</div>
+					<div class="spinner-demo">
+						<Spinner size="md" />
+						<span>Medium</span>
+					</div>
+					<div class="spinner-demo">
+						<Spinner size="lg" />
+						<span>Large</span>
+					</div>
+					<div class="spinner-demo">
+						<Spinner color="#ef4444" />
+						<span>Custom Color</span>
+					</div>
+				</div>
+			</section>
+		</div>
+	</body>
+</html>
+
+<style>
+	:global(*) {
+		box-sizing: border-box;
+		margin: 0;
+		padding: 0;
+	}
+
+	:global(body) {
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+		line-height: 1.5;
+		color: #1f2937;
+		background-color: #ffffff;
+	}
+
+	.container {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 2rem;
+	}
+
+	h1 {
+		font-size: 2.5rem;
+		margin-bottom: 0.5rem;
+		color: #111827;
+	}
+
+	.subtitle {
+		color: #6b7280;
+		font-size: 1.125rem;
+		margin-bottom: 3rem;
+	}
+
+	section {
+		margin-bottom: 3rem;
+	}
+
+	h2 {
+		font-size: 1.875rem;
+		margin-bottom: 1.5rem;
+		color: #1f2937;
+		border-bottom: 2px solid #e5e7eb;
+		padding-bottom: 0.5rem;
+	}
+
+	h3 {
+		font-size: 1.125rem;
+		margin-bottom: 1rem;
+		color: #374151;
+	}
+
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 1.5rem;
+	}
+
+	.button-grid {
+		display: grid;
+		gap: 2rem;
+	}
+
+	.button-row {
+		display: flex;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.form-grid {
+		display: grid;
+		gap: 1.5rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.form-actions {
+		margin-bottom: 1rem;
+	}
+
+	.spinner-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+		gap: 2rem;
+	}
+
+	.spinner-demo {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
+		padding: 2rem;
+		background: #f9fafb;
+		border-radius: 0.5rem;
+	}
+</style>

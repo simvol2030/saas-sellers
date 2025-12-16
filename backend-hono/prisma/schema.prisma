@@ -1,0 +1,22 @@
+// Prisma Schema - используется всеми backend'ами
+// Для переключения на PostgreSQL измените provider и DATABASE_URL
+
+datasource db {
+  provider = "sqlite"
+  // provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}

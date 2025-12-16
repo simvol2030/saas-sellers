@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # ========================================
+  # FRONTEND SERVICE
+  # ========================================
+
+  frontend-astro:
+    build: ./frontend-astro
+    container_name: frontend-astro-dev
+    ports:
+      - "4321:4321"
+    environment:
+      - PUBLIC_API_URL=http://backend-hono:3001
+    depends_on:
+      - backend-hono
+    networks:
+      - app-network
+    profiles:
+      - frontend
+    restart: unless-stopped
+
+  # ========================================
+  # BACKEND SERVICE
+  # ========================================
+
+  backend-hono:
+    build:
+      context: ./backend-hono
+      target: development
+    container_name: backend-hono-dev
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=file:../data/db/app.db
+      - ALLOWED_ORIGINS=http://localhost:4321
+    volumes:
+      # Hot-reload: mount source code
+      - ./backend-hono/src:/app/src
+      - ./backend-hono/tsconfig.json:/app/tsconfig.json
+      # Shared Prisma schema and database
+      - ./prisma:/app/../prisma
+      - ./data:/app/../data
+      # Prevent overwriting node_modules from container
+      - /app/node_modules
+    networks:
+      - app-network
+    profiles:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ========================================
+  # DATABASE (optional for production)
+  # ========================================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-dev
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    profiles:
+      - database
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
+# ========================================
+# USAGE:
+# ========================================
+#
+# Start backend:
+#   docker-compose --profile backend up
+#
+# Start frontend:
+#   docker-compose --profile frontend up
+#
+# Start both (Astro + Hono):
+#   docker-compose --profile frontend --profile backend up
+#
+# Start with PostgreSQL:
+#   docker-compose --profile backend --profile database up
+#
+# Start everything:
+#   docker-compose --profile frontend --profile backend --profile database up
+#
+# Run in background:
+#   docker-compose --profile frontend --profile backend up -d
+#
+# Stop all:
+#   docker-compose down
+#
+# Stop and remove volumes:
+#   docker-compose down -v
+#

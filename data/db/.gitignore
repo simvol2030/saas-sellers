@@ -1,0 +1,11 @@
+# Ignore all files in this directory
+*
+
+# Except this file
+!.gitignore
+!.gitkeep
+
+# Keep database files for reference (optional)
+# *.db
+# *.db-shm
+# *.db-wal

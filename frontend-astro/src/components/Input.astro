@@ -1,0 +1,86 @@
+---
+interface Props {
+	label?: string;
+	type?: 'text' | 'email' | 'password' | 'number';
+	placeholder?: string;
+	name?: string;
+	value?: string;
+	error?: string;
+	required?: boolean;
+}
+
+const {
+	label,
+	type = 'text',
+	placeholder,
+	name,
+	value,
+	error,
+	required = false
+} = Astro.props;
+---
+
+<div class="input-group">
+	{label && (
+		<label class="input-label">
+			{label}
+			{required && <span class="required">*</span>}
+		</label>
+	)}
+	<input
+		type={type}
+		name={name}
+		placeholder={placeholder}
+		value={value}
+		required={required}
+		class={`input ${error ? 'input-error' : ''}`}
+	/>
+	{error && <span class="error-message">{error}</span>}
+</div>
+
+<style>
+	.input-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.input-label {
+		font-weight: 500;
+		color: #374151;
+		font-size: 0.875rem;
+	}
+
+	.required {
+		color: #ef4444;
+		margin-left: 0.25rem;
+	}
+
+	.input {
+		padding: 0.5rem 0.75rem;
+		border: 1px solid #d1d5db;
+		border-radius: 0.375rem;
+		font-size: 1rem;
+		transition: all 0.2s;
+	}
+
+	.input:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+	}
+
+	.input-error {
+		border-color: #ef4444;
+	}
+
+	.input-error:focus {
+		border-color: #ef4444;
+		box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+	}
+
+	.error-message {
+		color: #ef4444;
+		font-size: 0.875rem;
+	}
+</style>

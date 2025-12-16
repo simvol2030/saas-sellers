@@ -1,0 +1,173 @@
+{
+  "dashboard": {
+    "title": "Loyalty System - Production Monitoring",
+    "tags": ["telegram-miniapp", "loyalty", "production"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Transaction Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(loyalty_transactions_total[5m])",
+            "legendFormat": "{{type}} - {{status}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(loyalty_transactions_total{status=\"error\"}[5m])",
+            "legendFormat": "{{type}}"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {"params": [0.1], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "name": "High Error Rate",
+          "noDataState": "no_data",
+          "notifications": []
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "API Latency (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+            "legendFormat": "{{method}} {{route}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Active Users (Telegram)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "loyalty_active_users",
+            "legendFormat": "Active Users"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Offline Sync Queue Size",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "offline_sync_queue_size",
+            "legendFormat": "Store {{store_id}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Database Connection Pool",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "drizzle_pool_connections_active",
+            "legendFormat": "Active"
+          },
+          {
+            "expr": "drizzle_pool_connections_idle",
+            "legendFormat": "Idle"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "QR Code Scans",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(loyalty_qr_scans_total[5m])",
+            "legendFormat": "{{status}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 8,
+        "title": "Cache Hit Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(loyalty_cache_hits_total[5m]) / (rate(loyalty_cache_hits_total[5m]) + rate(loyalty_cache_misses_total[5m]))",
+            "legendFormat": "Hit Rate"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 9,
+        "title": "Web Vitals - LCP (Largest Contentful Paint)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.75, web_vitals_lcp_bucket)",
+            "legendFormat": "p75"
+          },
+          {
+            "expr": "histogram_quantile(0.95, web_vitals_lcp_bucket)",
+            "legendFormat": "p95"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32}
+      },
+      {
+        "id": 10,
+        "title": "Web Vitals - CLS (Cumulative Layout Shift)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.75, web_vitals_cls_bucket)",
+            "legendFormat": "p75"
+          },
+          {
+            "expr": "histogram_quantile(0.95, web_vitals_cls_bucket)",
+            "legendFormat": "p95"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32}
+      },
+      {
+        "id": 11,
+        "title": "Sentry Error Events",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(sentry_events_total{level=\"error\"}[5m])",
+            "legendFormat": "{{environment}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 40}
+      }
+    ],
+    "schemaVersion": 27,
+    "version": 1
+  }
+}

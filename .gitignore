@@ -1,0 +1,77 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+dist/
+build/
+.output/
+.vercel/
+.netlify/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+data/db/*.db
+data/db/*.db-shm
+data/db/*.db-wal
+
+# Prisma
+prisma/*.db
+prisma/*.db-shm
+prisma/*.db-wal
+
+# Data directories (keep structure with .gitkeep)
+data/logs/*
+!data/logs/.gitkeep
+data/media/*
+!data/media/.gitkeep
+!data/media/**/.gitkeep
+
+# Astro
+.astro/
+
+# Docker
+.dockerignore
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.tgz
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# MCP settings with secrets
+.mcp.json
+.claude/settings.local.json
