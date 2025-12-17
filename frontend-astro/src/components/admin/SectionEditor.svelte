@@ -7,6 +7,7 @@
    */
 
   import { onMount } from 'svelte';
+  import MediaPicker from './MediaPicker.svelte';
 
   interface SectionItem {
     title?: string;
@@ -616,44 +617,32 @@
         </div>
       {/if}
 
-      <!-- Media fields -->
+      <!-- Media fields with MediaPicker integration -->
       {#if hasField('backgroundImage')}
-        <div class="form-group">
-          <label for="backgroundImage">{fieldLabels.backgroundImage}</label>
-          <input
-            id="backgroundImage"
-            type="text"
-            bind:value={section.backgroundImage}
-            placeholder="https://example.com/image.jpg"
-            class="form-input"
-          />
-        </div>
+        <MediaPicker
+          label={fieldLabels.backgroundImage}
+          bind:value={section.backgroundImage}
+          filterType="image"
+          placeholder="https://example.com/image.jpg"
+        />
       {/if}
 
       {#if hasField('backgroundVideo')}
-        <div class="form-group">
-          <label for="backgroundVideo">{fieldLabels.backgroundVideo}</label>
-          <input
-            id="backgroundVideo"
-            type="text"
-            bind:value={section.backgroundVideo}
-            placeholder="https://example.com/video.mp4"
-            class="form-input"
-          />
-        </div>
+        <MediaPicker
+          label={fieldLabels.backgroundVideo}
+          bind:value={section.backgroundVideo}
+          filterType="video"
+          placeholder="https://example.com/video.mp4"
+        />
       {/if}
 
       {#if hasField('image')}
-        <div class="form-group">
-          <label for="image">{fieldLabels.image}</label>
-          <input
-            id="image"
-            type="text"
-            bind:value={section.image}
-            placeholder="https://example.com/image.jpg"
-            class="form-input"
-          />
-        </div>
+        <MediaPicker
+          label={fieldLabels.image}
+          bind:value={section.image}
+          filterType="image"
+          placeholder="https://example.com/image.jpg"
+        />
       {/if}
 
       {#if hasField('imagePosition')}
@@ -757,29 +746,21 @@
       {/if}
 
       {#if hasField('src')}
-        <div class="form-group">
-          <label for="src">{fieldLabels.src}</label>
-          <input
-            id="src"
-            type="text"
-            bind:value={section.src}
-            placeholder="https://example.com/video.mp4"
-            class="form-input"
-          />
-        </div>
+        <MediaPicker
+          label={fieldLabels.src}
+          bind:value={section.src}
+          filterType="video"
+          placeholder="https://example.com/video.mp4"
+        />
       {/if}
 
       {#if hasField('poster')}
-        <div class="form-group">
-          <label for="poster">{fieldLabels.poster}</label>
-          <input
-            id="poster"
-            type="text"
-            bind:value={section.poster}
-            placeholder="https://example.com/poster.jpg"
-            class="form-input"
-          />
-        </div>
+        <MediaPicker
+          label={fieldLabels.poster}
+          bind:value={section.poster}
+          filterType="image"
+          placeholder="https://example.com/poster.jpg"
+        />
       {/if}
 
       {#if hasField('aspectRatio')}
