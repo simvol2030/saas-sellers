@@ -1,0 +1,191 @@
+---
+/**
+ * Blog Index - список всех статей
+ */
+import Base from '../../layouts/Base.astro';
+import PostList from '../../components/PostList.astro';
+import { getMdPosts, getMdCategories, getMdTags } from '../../lib/content';
+
+const posts = await getMdPosts();
+const categories = await getMdCategories();
+const tags = await getMdTags();
+---
+
+<Base
+  title="Блог"
+  description="Статьи, руководства и новости о веб-разработке"
+>
+  <div class="blog-page">
+    <header class="blog-header">
+      <div class="container">
+        <h1 class="page-title">Блог</h1>
+        <p class="page-description">
+          Статьи, руководства и новости о веб-разработке
+        </p>
+      </div>
+    </header>
+
+    <div class="blog-content container">
+      <div class="blog-grid">
+        <!-- Main Content -->
+        <div class="blog-main">
+          <PostList posts={posts} showFeatured={true} />
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="blog-sidebar">
+          <!-- Categories -->
+          {categories.length > 0 && (
+            <div class="sidebar-section">
+              <h3 class="sidebar-title">Категории</h3>
+              <ul class="sidebar-list">
+                {categories.map((category) => (
+                  <li>
+                    <a href={`/blog/category/${category}`} class="sidebar-link">
+                      {category}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <!-- Tags -->
+          {tags.length > 0 && (
+            <div class="sidebar-section">
+              <h3 class="sidebar-title">Теги</h3>
+              <div class="tags-cloud">
+                {tags.map((tag) => (
+                  <a href={`/blog/tag/${tag}`} class="tag">
+                    #{tag}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<style>
+  .blog-page {
+    min-height: 100vh;
+  }
+
+  .blog-header {
+    padding: var(--space-12) 0;
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .page-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: var(--space-3);
+  }
+
+  .page-description {
+    font-size: 1.125rem;
+    color: var(--color-text-muted);
+  }
+
+  .blog-content {
+    padding: var(--space-8) var(--space-4);
+  }
+
+  .blog-grid {
+    display: grid;
+    gap: var(--space-8);
+  }
+
+  @media (min-width: 1024px) {
+    .blog-grid {
+      grid-template-columns: 1fr 280px;
+    }
+  }
+
+  /* Sidebar */
+  .blog-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+  }
+
+  @media (max-width: 1023px) {
+    .blog-sidebar {
+      order: -1;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    .sidebar-section {
+      flex: 1;
+      min-width: 200px;
+    }
+  }
+
+  .sidebar-section {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+  }
+
+  .sidebar-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-3);
+  }
+
+  .sidebar-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .sidebar-link {
+    display: block;
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-text);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    text-transform: capitalize;
+    transition: all 0.2s;
+  }
+
+  .sidebar-link:hover {
+    background: var(--color-bg);
+    color: var(--color-primary);
+  }
+
+  .tags-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .tag {
+    padding: var(--space-1) var(--space-2);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .tag:hover {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+  }
+</style>

@@ -1,0 +1,76 @@
+/**
+ * Global Styles - основные стили платформы
+ * Используются во всех страницах через Base layout
+ */
+
+/* Уже определены в Base.astro, но здесь можно добавить дополнительные */
+
+/* Utility Classes */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--color-primary);
+  color: white;
+}
+
+/* Scrollbar (optional) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary);
+}
+
+/* Print styles */
+@media print {
+  .header,
+  .footer,
+  .nav-sidebar,
+  .share-buttons {
+    display: none !important;
+  }
+
+  .main-content {
+    padding: 0 !important;
+  }
+}

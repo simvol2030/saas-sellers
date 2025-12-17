@@ -6,6 +6,9 @@ import { secureHeaders } from 'hono/secure-headers';
 import { logger } from 'hono/logger';
 import { rateLimiter } from 'hono-rate-limiter';
 import users from './routes/users';
+import posts from './routes/posts';
+import categories from './routes/categories';
+import tags from './routes/tags';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './lib/db';
 
@@ -62,6 +65,9 @@ app.get('/health', async (c) => {
 
 // Routes
 app.route('/api/users', users);
+app.route('/api/posts', posts);
+app.route('/api/categories', categories);
+app.route('/api/tags', tags);
 
 // Error handling
 app.onError(errorHandler);
