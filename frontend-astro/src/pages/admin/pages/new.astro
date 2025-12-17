@@ -1,16 +1,14 @@
 ---
 /**
- * Admin Pages List
- *
- * CRUD управление страницами лендингов
+ * Create New Page
  */
 import Admin from '../../../layouts/Admin.astro';
-import PagesList from '../../../components/admin/PagesList.svelte';
+import PageEditor from '../../../components/admin/PageEditor.svelte';
 
 export const prerender = false;
 ---
 
-<Admin title="Страницы">
+<Admin title="Новая страница">
   <script is:inline>
     (function() {
       if (!localStorage.getItem('accessToken')) {
@@ -19,5 +17,5 @@ export const prerender = false;
     })();
   </script>
 
-  <PagesList client:load />
+  <PageEditor client:load />
 </Admin>
