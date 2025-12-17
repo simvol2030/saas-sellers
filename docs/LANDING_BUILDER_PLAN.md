@@ -115,12 +115,12 @@ data/media/
 
 ---
 
-### ФАЗА 6: Social-style секции
+### ФАЗА 6: Social-style секции ✅
 
 **Компоненты:**
-- [ ] **InstagramFeed** — лента Instagram-style
-- [ ] **FacebookPost** — пост Facebook-style
-- [ ] **Longread** — длинная статья с TOC
+- [x] **InstagramFeed** — лента Instagram-style с lightbox
+- [x] **FacebookPost** — пост Facebook-style с reactions
+- [x] **Longread** — длинная статья с TOC, progress bar
 
 **Результат:** Social-style контент
 
@@ -230,8 +230,8 @@ frontend-astro/
 
 ## Текущий статус
 
-**Активная фаза:** ФАЗА 5 (завершена) -> ФАЗА 6
-**Прогресс:** ~75% (Фазы 1-5 завершены)
+**Активная фаза:** ФАЗА 6 (завершена) -> ФАЗА 7 (Админка)
+**Прогресс:** ~85% (Фазы 1-6 завершены, 23 секции)
 
 ### Что сделано:
 
@@ -274,6 +274,11 @@ frontend-astro/
 - `Stats.astro` - animated counters, 3 варианта оформления
 - `Team.astro` - карточки с аватарами, соцсети
 - `Partners.astro` - логотипы с grayscale режимом
+
+**Фаза 6 (Social-style секции):**
+- `InstagramFeed.astro` - grid лента, lightbox, лайки
+- `FacebookPost.astro` - пост с реакциями, комментариями
+- `Longread.astro` - длинная статья с TOC, прогресс чтения
 
 ---
 

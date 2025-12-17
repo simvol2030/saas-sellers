@@ -284,6 +284,23 @@ export interface InstagramFeedSection extends BaseSection {
   }>;
 }
 
+/** FacebookPost - пост Facebook-style */
+export interface FacebookPostSection extends BaseSection {
+  type: 'facebookPost';
+  author: {
+    name: string;
+    avatar?: string;
+    verified?: boolean;
+  };
+  date: string;
+  content: string;
+  image?: string;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  link?: string;
+}
+
 /** Longread - длинная статья с TOC */
 export interface LongreadSection extends BaseSection {
   type: 'longread';
@@ -315,6 +332,7 @@ export type Section =
   | TeamSection
   | PartnersSection
   | InstagramFeedSection
+  | FacebookPostSection
   | LongreadSection;
 
 // ===========================================
