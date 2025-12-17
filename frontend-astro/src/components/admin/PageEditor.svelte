@@ -73,31 +73,37 @@
   let showSectionPicker = $state(false);
   let hasUnsavedChanges = $state(false);
 
-  // Available section types
+  // Available section types - matches actual components in sections/
   const sectionTypes = [
-    { type: 'hero', name: 'Hero', icon: '🦸', description: 'Главный баннер страницы' },
-    { type: 'hero-split', name: 'Hero Split', icon: '↔️', description: 'Hero с изображением сбоку' },
-    { type: 'hero-video', name: 'Hero Video', icon: '🎬', description: 'Hero с видео фоном' },
-    { type: 'features', name: 'Features Grid', icon: '⭐', description: 'Сетка преимуществ' },
-    { type: 'features-alt', name: 'Features Alt', icon: '🔲', description: 'Альтернативный стиль' },
-    { type: 'features-icons', name: 'Features Icons', icon: '🎯', description: 'С иконками' },
-    { type: 'pricing', name: 'Pricing', icon: '💰', description: 'Таблица цен' },
-    { type: 'pricing-toggle', name: 'Pricing Toggle', icon: '🔄', description: 'С переключателем периода' },
-    { type: 'testimonials', name: 'Testimonials', icon: '💬', description: 'Отзывы клиентов' },
-    { type: 'testimonials-carousel', name: 'Testimonials Carousel', icon: '🎠', description: 'Карусель отзывов' },
+    // Hero sections
+    { type: 'hero', name: 'Hero', icon: '🦸', description: 'Главный баннер с фото/видео фоном' },
+    { type: 'heroMin', name: 'HeroMin', icon: '📄', description: 'Мини-баннер для подстраниц' },
+    // Content sections
+    { type: 'textBlock', name: 'Текстовый блок', icon: '📝', description: 'Текстовый блок с Markdown' },
+    { type: 'snippet', name: 'Snippet', icon: '📰', description: 'Блок с изображением и текстом' },
+    { type: 'longread', name: 'Longread', icon: '📖', description: 'Длинная статья с оглавлением' },
+    // Media sections
+    { type: 'photoGallery', name: 'Фотогалерея', icon: '🖼️', description: 'Галерея с lightbox и swipe' },
+    { type: 'photoSlider', name: 'Слайдер', icon: '🎠', description: 'Слайдер изображений' },
+    { type: 'videoYouTube', name: 'YouTube видео', icon: '📺', description: 'Встроенное YouTube видео' },
+    { type: 'videoLocal', name: 'Локальное видео', icon: '🎬', description: 'Видео с автовоспроизведением' },
+    { type: 'mediaMix', name: 'MediaMix', icon: '📷', description: 'Instagram-style лента' },
+    // Conversion sections
     { type: 'cta', name: 'CTA', icon: '📢', description: 'Призыв к действию' },
-    { type: 'cta-split', name: 'CTA Split', icon: '📋', description: 'CTA с формой' },
-    { type: 'faq', name: 'FAQ', icon: '❓', description: 'Часто задаваемые вопросы' },
-    { type: 'faq-columns', name: 'FAQ Columns', icon: '📊', description: 'FAQ в колонках' },
-    { type: 'contact', name: 'Contact', icon: '✉️', description: 'Контактная форма' },
-    { type: 'contact-map', name: 'Contact Map', icon: '🗺️', description: 'Контакты с картой' },
-    { type: 'gallery', name: 'Gallery', icon: '🖼️', description: 'Галерея изображений' },
-    { type: 'gallery-masonry', name: 'Gallery Masonry', icon: '🧱', description: 'Masonry галерея' },
-    { type: 'team', name: 'Team', icon: '👥', description: 'Команда' },
-    { type: 'stats', name: 'Stats', icon: '📈', description: 'Статистика в цифрах' },
-    { type: 'logos', name: 'Logos', icon: '🏢', description: 'Логотипы партнёров' },
-    { type: 'social-feed', name: 'Social Feed', icon: '📱', description: 'Социальная лента' },
-    { type: 'social-proof', name: 'Social Proof', icon: '✅', description: 'Социальные доказательства' },
+    { type: 'faq', name: 'FAQ', icon: '❓', description: 'Вопросы и ответы (аккордеон)' },
+    { type: 'contactForm', name: 'Форма связи', icon: '✉️', description: 'Контактная форма' },
+    { type: 'pricing', name: 'Тарифы', icon: '💰', description: 'Таблица тарифов' },
+    { type: 'compareTable', name: 'Сравнение', icon: '📊', description: 'Сравнительная таблица' },
+    { type: 'testimonials', name: 'Отзывы', icon: '💬', description: 'Карточки/слайдер отзывов' },
+    // Info sections
+    { type: 'features', name: 'Преимущества', icon: '⭐', description: 'Сетка преимуществ с иконками' },
+    { type: 'timeline', name: 'Таймлайн', icon: '📅', description: 'Этапы работы или история' },
+    { type: 'stats', name: 'Статистика', icon: '📈', description: 'Числа с анимацией счётчика' },
+    { type: 'team', name: 'Команда', icon: '👥', description: 'Карточки членов команды' },
+    { type: 'partners', name: 'Партнёры', icon: '🏢', description: 'Логотипы партнёров/клиентов' },
+    // Social sections
+    { type: 'instagramFeed', name: 'Instagram Feed', icon: '📱', description: 'Лента в стиле Instagram' },
+    { type: 'facebookPost', name: 'Facebook Post', icon: '👍', description: 'Пост в стиле Facebook' },
   ];
 
   // Load page data
@@ -198,51 +204,62 @@
     }
   }
 
-  // Generate slug from title
+  // Transliteration map for Cyrillic
+  const cyrillicMap: Record<string, string> = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo', 'ж': 'zh',
+    'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o',
+    'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts',
+    'ч': 'ch', 'ш': 'sh', 'щ': 'sch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+  };
+
+  // Generate slug from title with Cyrillic transliteration
   function generateSlug() {
     if (page.slug || !page.title) return;
 
     page.slug = page.title
       .toLowerCase()
+      .split('')
+      .map(char => cyrillicMap[char] ?? char)
+      .join('')
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .slice(0, 100);
   }
 
-  // Add section
+  // Add section with default props based on type
   function addSection(type: string) {
     const id = `${type}-${Date.now()}`;
-    const section: Section = {
-      id,
-      type,
-      hidden: false,
+    const section: Section = { id, type, hidden: false };
+
+    // Default content based on section type
+    const defaults: Record<string, Partial<Section>> = {
+      hero: { title: 'Заголовок', subtitle: 'Подзаголовок', ctaText: 'Начать', ctaHref: '#', align: 'center', height: 'large' },
+      heroMin: { title: 'Заголовок страницы' },
+      textBlock: { content: 'Ваш текст здесь...', maxWidth: 'md' },
+      snippet: { title: 'Заголовок', content: 'Описание...', image: '', imagePosition: 'left' },
+      longread: { content: '# Заголовок\n\nТекст статьи...', showToc: true },
+      photoGallery: { title: 'Галерея', images: [], columns: 3 },
+      photoSlider: { images: [], autoplay: true, interval: 5000 },
+      videoYouTube: { videoId: '', aspectRatio: '16:9' },
+      videoLocal: { src: '', autoplay: true, muted: true, loop: true },
+      mediaMix: { items: [] },
+      cta: { title: 'Готовы начать?', description: 'Присоединяйтесь к нам сегодня', buttonText: 'Начать', buttonHref: '#' },
+      faq: { title: 'Часто задаваемые вопросы', items: [{ question: 'Вопрос?', answer: 'Ответ...' }] },
+      contactForm: { title: 'Свяжитесь с нами', submitText: 'Отправить' },
+      pricing: { title: 'Наши тарифы', plans: [] },
+      compareTable: { headers: ['Функция', 'Базовый', 'Про'], rows: [] },
+      testimonials: { title: 'Отзывы клиентов', items: [], layout: 'grid' },
+      features: { title: 'Наши преимущества', items: [{ title: 'Преимущество', description: 'Описание' }], columns: 3 },
+      timeline: { title: 'Этапы работы', items: [{ title: 'Этап 1', description: 'Описание' }] },
+      stats: { items: [{ value: '100+', label: 'Клиентов' }] },
+      team: { title: 'Наша команда', members: [] },
+      partners: { title: 'Наши партнёры', logos: [], grayscale: true },
+      instagramFeed: { posts: [] },
+      facebookPost: { author: { name: 'Имя', avatar: '' }, date: '', content: '' },
     };
 
-    // Add default content based on type
-    switch (type) {
-      case 'hero':
-        section.title = 'Заголовок';
-        section.subtitle = 'Подзаголовок';
-        section.ctaText = 'Начать';
-        section.ctaLink = '#';
-        break;
-      case 'features':
-        section.title = 'Наши преимущества';
-        section.items = [
-          { title: 'Преимущество 1', description: 'Описание' },
-          { title: 'Преимущество 2', description: 'Описание' },
-          { title: 'Преимущество 3', description: 'Описание' },
-        ];
-        break;
-      case 'cta':
-        section.title = 'Готовы начать?';
-        section.description = 'Присоединяйтесь к нам сегодня';
-        section.buttonText = 'Начать бесплатно';
-        section.buttonLink = '#';
-        break;
-    }
-
+    Object.assign(section, defaults[type] || { title: 'Новая секция' });
     page.sections = [...page.sections, section];
     showSectionPicker = false;
     hasUnsavedChanges = true;
@@ -509,13 +526,24 @@
                     >
                       {section.hidden ? '👁️' : '🙈'}
                     </button>
-                    <a
-                      href={`/admin/pages/${pageId}/sections/${index}`}
-                      class="action-btn"
-                      title="Редактировать"
-                    >
-                      ✏️
-                    </a>
+                    {#if pageId}
+                      <a
+                        href={`/admin/pages/${pageId}/sections/${index}`}
+                        class="action-btn"
+                        title="Редактировать"
+                      >
+                        ✏️
+                      </a>
+                    {:else}
+                      <button
+                        type="button"
+                        class="action-btn"
+                        title="Сначала сохраните страницу"
+                        disabled
+                      >
+                        ✏️
+                      </button>
+                    {/if}
                     <button
                       type="button"
                       onclick={() => removeSection(index)}

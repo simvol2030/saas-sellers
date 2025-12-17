@@ -243,24 +243,28 @@
       </div>
       <div class="section-library">
         <div class="section-category">
-          <span class="category-label">Hero</span>
-          <span class="category-items">🦸 Hero, ↔️ Split, 🎬 Video</span>
+          <span class="category-label">Баннеры</span>
+          <span class="category-items">Hero, HeroMin</span>
         </div>
         <div class="section-category">
-          <span class="category-label">Features</span>
-          <span class="category-items">⭐ Grid, 🔲 Alt, 🎯 Icons</span>
+          <span class="category-label">Контент</span>
+          <span class="category-items">TextBlock, Snippet, Longread</span>
         </div>
         <div class="section-category">
-          <span class="category-label">Pricing</span>
-          <span class="category-items">💰 Basic, 🔄 Toggle</span>
+          <span class="category-label">Медиа</span>
+          <span class="category-items">Галерея, Слайдер, YouTube, Видео, MediaMix</span>
+        </div>
+        <div class="section-category">
+          <span class="category-label">Конверсия</span>
+          <span class="category-items">CTA, FAQ, Форма, Тарифы, Сравнение, Отзывы</span>
+        </div>
+        <div class="section-category">
+          <span class="category-label">Информация</span>
+          <span class="category-items">Features, Timeline, Stats, Team, Partners</span>
         </div>
         <div class="section-category">
           <span class="category-label">Social</span>
-          <span class="category-items">💬 Testimonials, 👥 Team, 📈 Stats</span>
-        </div>
-        <div class="section-category">
-          <span class="category-label">Content</span>
-          <span class="category-items">📢 CTA, ❓ FAQ, ✉️ Contact, 🖼️ Gallery</span>
+          <span class="category-items">Instagram Feed, Facebook Post</span>
         </div>
       </div>
     </div>

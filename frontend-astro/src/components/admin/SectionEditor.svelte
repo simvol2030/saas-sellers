@@ -64,141 +64,189 @@
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
 
-  // Section type metadata
-  const sectionMeta: Record<string, { name: string; icon: string; fields: string[] }> = {
+  // Section type metadata - matches actual components in sections/
+  const sectionMeta: Record<string, { name: string; icon: string; fields: string[]; itemsKey?: string }> = {
     'hero': {
       name: 'Hero',
       icon: '🦸',
-      fields: ['title', 'subtitle', 'description', 'ctaText', 'ctaLink', 'secondaryCtaText', 'secondaryCtaLink', 'backgroundImage']
+      fields: ['title', 'subtitle', 'description', 'backgroundImage', 'backgroundVideo', 'ctaText', 'ctaHref', 'ctaSecondaryText', 'ctaSecondaryHref', 'align', 'height', 'overlay', 'overlayOpacity']
     },
-    'hero-split': {
-      name: 'Hero Split',
-      icon: '↔️',
-      fields: ['title', 'subtitle', 'description', 'ctaText', 'ctaLink', 'image', 'imagePosition']
+    'heroMin': {
+      name: 'HeroMin',
+      icon: '📄',
+      fields: ['title', 'subtitle', 'backgroundImage']
     },
-    'hero-video': {
-      name: 'Hero Video',
-      icon: '🎬',
-      fields: ['title', 'subtitle', 'ctaText', 'ctaLink', 'backgroundVideo']
+    'textBlock': {
+      name: 'Текстовый блок',
+      icon: '📝',
+      fields: ['content', 'columns', 'maxWidth']
     },
-    'features': {
-      name: 'Features Grid',
-      icon: '⭐',
-      fields: ['title', 'subtitle', 'columns', 'items']
+    'snippet': {
+      name: 'Snippet',
+      icon: '📰',
+      fields: ['title', 'content', 'image', 'imageAlt', 'imagePosition', 'ctaText', 'ctaHref']
     },
-    'features-alt': {
-      name: 'Features Alt',
-      icon: '🔲',
-      fields: ['title', 'subtitle', 'items']
+    'longread': {
+      name: 'Longread',
+      icon: '📖',
+      fields: ['content', 'showToc', 'tocTitle']
     },
-    'features-icons': {
-      name: 'Features Icons',
-      icon: '🎯',
-      fields: ['title', 'subtitle', 'columns', 'items']
+    'photoGallery': {
+      name: 'Фотогалерея',
+      icon: '🖼️',
+      fields: ['title', 'columns'],
+      itemsKey: 'images'
     },
-    'pricing': {
-      name: 'Pricing',
-      icon: '💰',
-      fields: ['title', 'subtitle', 'items']
-    },
-    'pricing-toggle': {
-      name: 'Pricing Toggle',
-      icon: '🔄',
-      fields: ['title', 'subtitle', 'items']
-    },
-    'testimonials': {
-      name: 'Testimonials',
-      icon: '💬',
-      fields: ['title', 'subtitle', 'items']
-    },
-    'testimonials-carousel': {
-      name: 'Testimonials Carousel',
+    'photoSlider': {
+      name: 'Слайдер',
       icon: '🎠',
-      fields: ['title', 'subtitle', 'items']
+      fields: ['title', 'autoplay', 'interval'],
+      itemsKey: 'images'
+    },
+    'videoYouTube': {
+      name: 'YouTube видео',
+      icon: '📺',
+      fields: ['title', 'videoId', 'aspectRatio']
+    },
+    'videoLocal': {
+      name: 'Локальное видео',
+      icon: '🎬',
+      fields: ['title', 'src', 'poster', 'autoplay', 'muted', 'loop', 'controls']
+    },
+    'mediaMix': {
+      name: 'MediaMix',
+      icon: '📷',
+      fields: ['title'],
+      itemsKey: 'items'
     },
     'cta': {
       name: 'CTA',
       icon: '📢',
-      fields: ['title', 'description', 'ctaText', 'ctaLink', 'backgroundImage']
-    },
-    'cta-split': {
-      name: 'CTA Split',
-      icon: '📋',
-      fields: ['title', 'description', 'ctaText', 'ctaLink', 'image']
+      fields: ['title', 'description', 'buttonText', 'buttonHref', 'secondaryText', 'secondaryHref', 'variant']
     },
     'faq': {
       name: 'FAQ',
       icon: '❓',
-      fields: ['title', 'subtitle', 'items']
+      fields: ['title', 'subtitle'],
+      itemsKey: 'items'
     },
-    'faq-columns': {
-      name: 'FAQ Columns',
-      icon: '📊',
-      fields: ['title', 'subtitle', 'columns', 'items']
-    },
-    'contact': {
-      name: 'Contact',
+    'contactForm': {
+      name: 'Форма связи',
       icon: '✉️',
-      fields: ['title', 'subtitle', 'description']
+      fields: ['title', 'description', 'submitText', 'successMessage']
     },
-    'contact-map': {
-      name: 'Contact Map',
-      icon: '🗺️',
-      fields: ['title', 'subtitle', 'description', 'mapUrl']
+    'pricing': {
+      name: 'Тарифы',
+      icon: '💰',
+      fields: ['title', 'subtitle'],
+      itemsKey: 'plans'
     },
-    'gallery': {
-      name: 'Gallery',
-      icon: '🖼️',
-      fields: ['title', 'subtitle', 'columns', 'items']
+    'compareTable': {
+      name: 'Сравнение',
+      icon: '📊',
+      fields: ['title']
     },
-    'gallery-masonry': {
-      name: 'Gallery Masonry',
-      icon: '🧱',
-      fields: ['title', 'subtitle', 'items']
+    'testimonials': {
+      name: 'Отзывы',
+      icon: '💬',
+      fields: ['title', 'layout'],
+      itemsKey: 'items'
     },
-    'team': {
-      name: 'Team',
-      icon: '👥',
-      fields: ['title', 'subtitle', 'columns', 'items']
+    'features': {
+      name: 'Преимущества',
+      icon: '⭐',
+      fields: ['title', 'subtitle', 'columns'],
+      itemsKey: 'items'
+    },
+    'timeline': {
+      name: 'Таймлайн',
+      icon: '📅',
+      fields: ['title'],
+      itemsKey: 'items'
     },
     'stats': {
-      name: 'Stats',
+      name: 'Статистика',
       icon: '📈',
-      fields: ['title', 'subtitle', 'items']
+      fields: ['title', 'variant'],
+      itemsKey: 'items'
     },
-    'logos': {
-      name: 'Logos',
+    'team': {
+      name: 'Команда',
+      icon: '👥',
+      fields: ['title', 'subtitle'],
+      itemsKey: 'members'
+    },
+    'partners': {
+      name: 'Партнёры',
       icon: '🏢',
-      fields: ['title', 'subtitle', 'items']
+      fields: ['title', 'grayscale'],
+      itemsKey: 'logos'
     },
-    'social-feed': {
-      name: 'Social Feed',
+    'instagramFeed': {
+      name: 'Instagram Feed',
       icon: '📱',
-      fields: ['title', 'subtitle', 'items']
+      fields: ['title'],
+      itemsKey: 'posts'
     },
-    'social-proof': {
-      name: 'Social Proof',
-      icon: '✅',
-      fields: ['title', 'subtitle', 'items']
+    'facebookPost': {
+      name: 'Facebook Post',
+      icon: '👍',
+      fields: ['date', 'content', 'image', 'likes', 'comments', 'shares', 'link']
     },
   };
 
-  // Field labels
+  // Field labels for all section types
   const fieldLabels: Record<string, string> = {
     title: 'Заголовок',
     subtitle: 'Подзаголовок',
     description: 'Описание',
+    content: 'Контент (Markdown)',
+    // CTA fields
     ctaText: 'Текст кнопки',
-    ctaLink: 'Ссылка кнопки',
-    secondaryCtaText: 'Вторая кнопка (текст)',
-    secondaryCtaLink: 'Вторая кнопка (ссылка)',
+    ctaHref: 'Ссылка кнопки',
+    ctaSecondaryText: 'Вторая кнопка (текст)',
+    ctaSecondaryHref: 'Вторая кнопка (ссылка)',
+    buttonText: 'Текст кнопки',
+    buttonHref: 'Ссылка кнопки',
+    secondaryText: 'Вторая кнопка (текст)',
+    secondaryHref: 'Вторая кнопка (ссылка)',
+    // Media fields
     backgroundImage: 'Фоновое изображение (URL)',
     backgroundVideo: 'Фоновое видео (URL)',
     image: 'Изображение (URL)',
+    imageAlt: 'Alt текст изображения',
     imagePosition: 'Позиция изображения',
+    src: 'URL видео',
+    poster: 'Постер видео (URL)',
+    videoId: 'YouTube Video ID',
+    aspectRatio: 'Соотношение сторон',
+    // Layout fields
     columns: 'Колонок',
-    mapUrl: 'URL карты',
+    maxWidth: 'Макс. ширина',
+    align: 'Выравнивание',
+    height: 'Высота',
+    layout: 'Макет',
+    variant: 'Вариант',
+    // Boolean fields
+    overlay: 'Затемнение',
+    overlayOpacity: 'Прозрачность затемнения',
+    autoplay: 'Автовоспроизведение',
+    muted: 'Без звука',
+    loop: 'Повтор',
+    controls: 'Показать элементы управления',
+    showToc: 'Показать оглавление',
+    tocTitle: 'Заголовок оглавления',
+    grayscale: 'Ч/Б фильтр',
+    // Form fields
+    submitText: 'Текст кнопки отправки',
+    successMessage: 'Сообщение об успехе',
+    // Other
     className: 'CSS класс',
+    date: 'Дата',
+    likes: 'Лайки',
+    comments: 'Комментарии',
+    shares: 'Репосты',
+    link: 'Ссылка',
   };
 
   // Load section data
@@ -295,65 +343,109 @@
     }
   }
 
-  // Add item to array field
+  // Get items array key for current section type
+  function getItemsKey(): string {
+    if (!section) return 'items';
+    return sectionMeta[section.type]?.itemsKey || 'items';
+  }
+
+  // Get items array from section
+  function getItems(): SectionItem[] {
+    if (!section) return [];
+    const key = getItemsKey();
+    return (section as any)[key] || [];
+  }
+
+  // Set items array on section
+  function setItems(items: SectionItem[]) {
+    if (!section) return;
+    const key = getItemsKey();
+    (section as any)[key] = items;
+  }
+
+  // Add item to array field based on section type
   function addItem() {
     if (!section) return;
 
     const type = section.type;
     let newItem: SectionItem = {};
 
-    // Default item structure based on section type
-    if (type.includes('pricing')) {
-      newItem = { title: 'План', price: '$0', description: '', features: ['Функция 1'] };
-    } else if (type.includes('testimonial')) {
-      newItem = { name: 'Имя', role: 'Должность', quote: 'Отзыв...', avatar: '', rating: 5 };
-    } else if (type.includes('faq')) {
-      newItem = { question: 'Вопрос?', answer: 'Ответ...' };
-    } else if (type.includes('team')) {
-      newItem = { name: 'Имя', role: 'Должность', avatar: '', description: '' };
-    } else if (type.includes('gallery') || type.includes('logos')) {
-      newItem = { image: '', title: '', link: '' };
-    } else if (type.includes('stats')) {
-      newItem = { title: 'Показатель', value: '100+', description: '' };
-    } else if (type.includes('social')) {
-      newItem = { title: '', image: '', link: '' };
-    } else {
-      newItem = { title: 'Элемент', description: '', icon: '' };
+    // Default item structure based on actual parser.ts interfaces
+    switch (type) {
+      case 'pricing':
+        newItem = { name: 'Тариф', price: '$0', period: '/мес', description: '', features: ['Функция 1'], ctaText: 'Выбрать', ctaHref: '#', highlighted: false };
+        break;
+      case 'testimonials':
+        newItem = { content: 'Отзыв...', author: 'Имя', role: 'Должность', avatar: '', rating: 5 };
+        break;
+      case 'faq':
+        newItem = { question: 'Вопрос?', answer: 'Ответ...' };
+        break;
+      case 'team':
+        newItem = { name: 'Имя', role: 'Должность', avatar: '', bio: '' };
+        break;
+      case 'photoGallery':
+      case 'photoSlider':
+        newItem = { src: '', alt: '', caption: '' };
+        break;
+      case 'partners':
+        newItem = { src: '', alt: '', href: '' };
+        break;
+      case 'stats':
+        newItem = { value: '100+', label: 'Клиентов', prefix: '', suffix: '' };
+        break;
+      case 'features':
+        newItem = { icon: '⭐', title: 'Преимущество', description: 'Описание...' };
+        break;
+      case 'timeline':
+        newItem = { title: 'Этап', description: 'Описание...', date: '', icon: '' };
+        break;
+      case 'mediaMix':
+        newItem = { type: 'image', src: '', caption: '' };
+        break;
+      case 'instagramFeed':
+        newItem = { image: '', likes: 0, comments: 0, caption: '', link: '' };
+        break;
+      default:
+        newItem = { title: 'Элемент', description: '' };
     }
 
-    section.items = [...(section.items || []), newItem];
+    setItems([...getItems(), newItem]);
   }
 
   // Remove item from array
   function removeItem(index: number) {
-    if (!section?.items) return;
-    section.items = section.items.filter((_, i) => i !== index);
+    const items = getItems();
+    if (!items.length) return;
+    setItems(items.filter((_, i) => i !== index));
   }
 
   // Move item in array
   function moveItem(index: number, direction: 'up' | 'down') {
-    if (!section?.items) return;
+    const items = getItems();
+    if (!items.length) return;
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= section.items.length) return;
+    if (newIndex < 0 || newIndex >= items.length) return;
 
-    const items = [...section.items];
-    [items[index], items[newIndex]] = [items[newIndex], items[index]];
-    section.items = items;
+    const newItems = [...items];
+    [newItems[index], newItems[newIndex]] = [newItems[newIndex], newItems[index]];
+    setItems(newItems);
   }
 
   // Add feature to pricing item
   function addFeature(itemIndex: number) {
-    if (!section?.items?.[itemIndex]) return;
-    const item = section.items[itemIndex];
-    item.features = [...(item.features || []), 'Новая функция'];
-    section.items = [...section.items];
+    const items = getItems();
+    if (!items[itemIndex]) return;
+    items[itemIndex].features = [...(items[itemIndex].features || []), 'Новая функция'];
+    setItems([...items]);
   }
 
   // Remove feature from pricing item
   function removeFeature(itemIndex: number, featureIndex: number) {
-    if (!section?.items?.[itemIndex]?.features) return;
-    section.items[itemIndex].features = section.items[itemIndex].features!.filter((_, i) => i !== featureIndex);
-    section.items = [...section.items];
+    const items = getItems();
+    if (!items[itemIndex]?.features) return;
+    items[itemIndex].features = items[itemIndex].features!.filter((_: any, i: number) => i !== featureIndex);
+    setItems([...items]);
   }
 
   // Get meta for current section
@@ -366,6 +458,12 @@
   function hasField(field: string): boolean {
     const meta = getMeta();
     return meta?.fields.includes(field) || false;
+  }
+
+  // Check if section type has items
+  function hasItems(): boolean {
+    const meta = getMeta();
+    return !!meta?.itemsKey;
   }
 
   // Initial load
@@ -607,193 +705,145 @@
     </div>
 
     <!-- Items -->
-    {#if hasField('items')}
+    {#if hasItems()}
+      {@const items = getItems()}
       <div class="form-section">
         <div class="section-header">
-          <h2 class="section-title">Элементы ({section.items?.length || 0})</h2>
+          <h2 class="section-title">Элементы ({items.length})</h2>
           <button type="button" onclick={addItem} class="btn btn-primary btn-sm">
-            ➕ Добавить
+            + Добавить
           </button>
         </div>
 
-        {#if !section.items?.length}
+        {#if !items.length}
           <div class="empty-items">
             <p>Нет элементов. Добавьте первый элемент.</p>
           </div>
         {:else}
           <div class="items-list">
-            {#each section.items as item, index (index)}
+            {#each items as item, index (index)}
               <div class="item-card">
                 <div class="item-header">
                   <span class="item-number">#{index + 1}</span>
                   <div class="item-actions">
-                    <button
-                      type="button"
-                      onclick={() => moveItem(index, 'up')}
-                      disabled={index === 0}
-                      class="action-btn"
-                      title="Вверх"
-                    >↑</button>
-                    <button
-                      type="button"
-                      onclick={() => moveItem(index, 'down')}
-                      disabled={index === (section.items?.length || 0) - 1}
-                      class="action-btn"
-                      title="Вниз"
-                    >↓</button>
-                    <button
-                      type="button"
-                      onclick={() => removeItem(index)}
-                      class="action-btn action-delete"
-                      title="Удалить"
-                    >🗑️</button>
+                    <button type="button" onclick={() => moveItem(index, 'up')} disabled={index === 0} class="action-btn" title="Вверх">^</button>
+                    <button type="button" onclick={() => moveItem(index, 'down')} disabled={index === items.length - 1} class="action-btn" title="Вниз">v</button>
+                    <button type="button" onclick={() => removeItem(index)} class="action-btn action-delete" title="Удалить">x</button>
                   </div>
                 </div>
 
                 <div class="item-fields">
-                  <!-- Different fields based on section type -->
-                  {#if section.type.includes('pricing')}
-                    <!-- Pricing item -->
+                  {#if section.type === 'pricing'}
+                    <!-- Pricing plan -->
                     <div class="form-grid">
-                      <div class="form-group">
-                        <label>Название плана</label>
-                        <input type="text" bind:value={item.title} class="form-input" />
-                      </div>
-                      <div class="form-group">
-                        <label>Цена</label>
-                        <input type="text" bind:value={item.price} class="form-input" placeholder="$99/мес" />
-                      </div>
+                      <div class="form-group"><label>Название</label><input type="text" bind:value={item.name} class="form-input" /></div>
+                      <div class="form-group"><label>Цена</label><input type="text" bind:value={item.price} class="form-input" /></div>
+                      <div class="form-group"><label>Период</label><input type="text" bind:value={item.period} class="form-input" placeholder="/мес" /></div>
                     </div>
-                    <div class="form-group">
-                      <label>Описание</label>
-                      <input type="text" bind:value={item.description} class="form-input" />
+                    <div class="form-group"><label>Описание</label><input type="text" bind:value={item.description} class="form-input" /></div>
+                    <div class="form-grid">
+                      <div class="form-group"><label>Текст кнопки</label><input type="text" bind:value={item.ctaText} class="form-input" /></div>
+                      <div class="form-group"><label>Ссылка</label><input type="text" bind:value={item.ctaHref} class="form-input" /></div>
                     </div>
+                    <div class="form-group"><label><input type="checkbox" bind:checked={item.highlighted} /> Выделенный</label></div>
                     <div class="form-group">
                       <label>Функции</label>
                       <div class="features-list">
-                        {#each item.features || [] as feature, fi}
+                        {#each item.features || [] as _, fi}
                           <div class="feature-item">
                             <input type="text" bind:value={item.features[fi]} class="form-input" />
-                            <button type="button" onclick={() => removeFeature(index, fi)} class="action-btn action-delete">✕</button>
+                            <button type="button" onclick={() => removeFeature(index, fi)} class="action-btn action-delete">x</button>
                           </div>
                         {/each}
                         <button type="button" onclick={() => addFeature(index)} class="btn btn-secondary btn-sm">+ Функция</button>
                       </div>
                     </div>
 
-                  {:else if section.type.includes('testimonial')}
-                    <!-- Testimonial item -->
+                  {:else if section.type === 'testimonials'}
+                    <!-- Testimonial -->
+                    <div class="form-group"><label>Отзыв</label><textarea bind:value={item.content} class="form-textarea" rows="3"></textarea></div>
                     <div class="form-grid">
-                      <div class="form-group">
-                        <label>Имя</label>
-                        <input type="text" bind:value={item.name} class="form-input" />
-                      </div>
-                      <div class="form-group">
-                        <label>Должность</label>
-                        <input type="text" bind:value={item.role} class="form-input" />
-                      </div>
-                    </div>
-                    <div class="form-group">
-                      <label>Отзыв</label>
-                      <textarea bind:value={item.quote} class="form-textarea" rows="3"></textarea>
+                      <div class="form-group"><label>Автор</label><input type="text" bind:value={item.author} class="form-input" /></div>
+                      <div class="form-group"><label>Должность</label><input type="text" bind:value={item.role} class="form-input" /></div>
                     </div>
                     <div class="form-grid">
-                      <div class="form-group">
-                        <label>Аватар (URL)</label>
-                        <input type="text" bind:value={item.avatar} class="form-input" />
-                      </div>
-                      <div class="form-group">
-                        <label>Рейтинг (1-5)</label>
-                        <input type="number" bind:value={item.rating} min="1" max="5" class="form-input" />
-                      </div>
+                      <div class="form-group"><label>Аватар (URL)</label><input type="text" bind:value={item.avatar} class="form-input" /></div>
+                      <div class="form-group"><label>Рейтинг (1-5)</label><input type="number" bind:value={item.rating} min="1" max="5" class="form-input" /></div>
                     </div>
 
-                  {:else if section.type.includes('faq')}
-                    <!-- FAQ item -->
-                    <div class="form-group">
-                      <label>Вопрос</label>
-                      <input type="text" bind:value={item.question} class="form-input" />
+                  {:else if section.type === 'faq'}
+                    <!-- FAQ -->
+                    <div class="form-group"><label>Вопрос</label><input type="text" bind:value={item.question} class="form-input" /></div>
+                    <div class="form-group"><label>Ответ</label><textarea bind:value={item.answer} class="form-textarea" rows="3"></textarea></div>
+
+                  {:else if section.type === 'team'}
+                    <!-- Team member -->
+                    <div class="form-grid">
+                      <div class="form-group"><label>Имя</label><input type="text" bind:value={item.name} class="form-input" /></div>
+                      <div class="form-group"><label>Должность</label><input type="text" bind:value={item.role} class="form-input" /></div>
                     </div>
-                    <div class="form-group">
-                      <label>Ответ</label>
-                      <textarea bind:value={item.answer} class="form-textarea" rows="3"></textarea>
+                    <div class="form-group"><label>Фото (URL)</label><input type="text" bind:value={item.avatar} class="form-input" /></div>
+                    <div class="form-group"><label>Биография</label><textarea bind:value={item.bio} class="form-textarea" rows="2"></textarea></div>
+
+                  {:else if section.type === 'photoGallery' || section.type === 'photoSlider'}
+                    <!-- Image -->
+                    <div class="form-group"><label>Изображение (URL)</label><input type="text" bind:value={item.src} class="form-input" /></div>
+                    <div class="form-grid">
+                      <div class="form-group"><label>Alt текст</label><input type="text" bind:value={item.alt} class="form-input" /></div>
+                      <div class="form-group"><label>Подпись</label><input type="text" bind:value={item.caption} class="form-input" /></div>
                     </div>
 
-                  {:else if section.type.includes('team')}
-                    <!-- Team item -->
+                  {:else if section.type === 'partners'}
+                    <!-- Partner logo -->
+                    <div class="form-group"><label>Логотип (URL)</label><input type="text" bind:value={item.src} class="form-input" /></div>
                     <div class="form-grid">
-                      <div class="form-group">
-                        <label>Имя</label>
-                        <input type="text" bind:value={item.name} class="form-input" />
-                      </div>
-                      <div class="form-group">
-                        <label>Должность</label>
-                        <input type="text" bind:value={item.role} class="form-input" />
-                      </div>
-                    </div>
-                    <div class="form-group">
-                      <label>Фото (URL)</label>
-                      <input type="text" bind:value={item.avatar} class="form-input" />
-                    </div>
-                    <div class="form-group">
-                      <label>Описание</label>
-                      <textarea bind:value={item.description} class="form-textarea" rows="2"></textarea>
+                      <div class="form-group"><label>Alt текст</label><input type="text" bind:value={item.alt} class="form-input" /></div>
+                      <div class="form-group"><label>Ссылка</label><input type="text" bind:value={item.href} class="form-input" /></div>
                     </div>
 
-                  {:else if section.type.includes('stats')}
-                    <!-- Stats item -->
+                  {:else if section.type === 'stats'}
+                    <!-- Stat -->
                     <div class="form-grid">
-                      <div class="form-group">
-                        <label>Значение</label>
-                        <input type="text" bind:value={item.value} class="form-input" placeholder="100+" />
-                      </div>
-                      <div class="form-group">
-                        <label>Название</label>
-                        <input type="text" bind:value={item.title} class="form-input" />
-                      </div>
+                      <div class="form-group"><label>Значение</label><input type="text" bind:value={item.value} class="form-input" /></div>
+                      <div class="form-group"><label>Подпись</label><input type="text" bind:value={item.label} class="form-input" /></div>
                     </div>
-                    <div class="form-group">
-                      <label>Описание</label>
-                      <input type="text" bind:value={item.description} class="form-input" />
+                    <div class="form-grid">
+                      <div class="form-group"><label>Префикс</label><input type="text" bind:value={item.prefix} class="form-input" placeholder="$" /></div>
+                      <div class="form-group"><label>Суффикс</label><input type="text" bind:value={item.suffix} class="form-input" placeholder="+" /></div>
                     </div>
 
-                  {:else if section.type.includes('gallery') || section.type.includes('logos') || section.type.includes('social')}
-                    <!-- Gallery/Logo/Social item -->
-                    <div class="form-group">
-                      <label>Изображение (URL)</label>
-                      <input type="text" bind:value={item.image} class="form-input" />
-                    </div>
+                  {:else if section.type === 'timeline'}
+                    <!-- Timeline item -->
                     <div class="form-grid">
-                      <div class="form-group">
-                        <label>Название</label>
-                        <input type="text" bind:value={item.title} class="form-input" />
-                      </div>
-                      <div class="form-group">
-                        <label>Ссылка</label>
-                        <input type="text" bind:value={item.link} class="form-input" />
-                      </div>
+                      <div class="form-group"><label>Заголовок</label><input type="text" bind:value={item.title} class="form-input" /></div>
+                      <div class="form-group"><label>Дата</label><input type="text" bind:value={item.date} class="form-input" /></div>
                     </div>
+                    <div class="form-group"><label>Описание</label><textarea bind:value={item.description} class="form-textarea" rows="2"></textarea></div>
+                    <div class="form-group"><label>Иконка</label><input type="text" bind:value={item.icon} class="form-input" /></div>
+
+                  {:else if section.type === 'mediaMix'}
+                    <!-- MediaMix item -->
+                    <div class="form-grid">
+                      <div class="form-group"><label>Тип</label><select bind:value={item.type} class="form-select"><option value="image">Фото</option><option value="video">Видео</option></select></div>
+                      <div class="form-group"><label>URL</label><input type="text" bind:value={item.src} class="form-input" /></div>
+                    </div>
+                    <div class="form-group"><label>Подпись</label><input type="text" bind:value={item.caption} class="form-input" /></div>
+
+                  {:else if section.type === 'instagramFeed'}
+                    <!-- Instagram post -->
+                    <div class="form-group"><label>Изображение (URL)</label><input type="text" bind:value={item.image} class="form-input" /></div>
+                    <div class="form-grid">
+                      <div class="form-group"><label>Лайки</label><input type="number" bind:value={item.likes} class="form-input" /></div>
+                      <div class="form-group"><label>Комментарии</label><input type="number" bind:value={item.comments} class="form-input" /></div>
+                    </div>
+                    <div class="form-group"><label>Подпись</label><input type="text" bind:value={item.caption} class="form-input" /></div>
+                    <div class="form-group"><label>Ссылка</label><input type="text" bind:value={item.link} class="form-input" /></div>
 
                   {:else}
-                    <!-- Default feature item -->
-                    <div class="form-group">
-                      <label>Заголовок</label>
-                      <input type="text" bind:value={item.title} class="form-input" />
-                    </div>
-                    <div class="form-group">
-                      <label>Описание</label>
-                      <textarea bind:value={item.description} class="form-textarea" rows="2"></textarea>
-                    </div>
-                    <div class="form-grid">
-                      <div class="form-group">
-                        <label>Иконка</label>
-                        <input type="text" bind:value={item.icon} class="form-input" placeholder="⭐ или URL" />
-                      </div>
-                      <div class="form-group">
-                        <label>Ссылка</label>
-                        <input type="text" bind:value={item.link} class="form-input" />
-                      </div>
-                    </div>
+                    <!-- Default: features -->
+                    <div class="form-group"><label>Заголовок</label><input type="text" bind:value={item.title} class="form-input" /></div>
+                    <div class="form-group"><label>Описание</label><textarea bind:value={item.description} class="form-textarea" rows="2"></textarea></div>
+                    <div class="form-group"><label>Иконка</label><input type="text" bind:value={item.icon} class="form-input" placeholder="emoji или URL" /></div>
                   {/if}
                 </div>
               </div>

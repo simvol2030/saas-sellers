@@ -352,6 +352,20 @@ export const sectionsRegistry: SectionMeta[] = [
       posts: [],
     },
   },
+  {
+    type: 'facebookPost',
+    name: 'Facebook Post',
+    description: 'Пост в стиле Facebook',
+    category: 'social',
+    icon: 'brand-facebook',
+    component: 'FacebookPost',
+    defaultProps: {
+      type: 'facebookPost',
+      author: { name: '', avatar: '', verified: false },
+      date: '',
+      content: '',
+    },
+  },
 ];
 
 // ===========================================
