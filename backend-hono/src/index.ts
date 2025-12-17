@@ -10,6 +10,7 @@ import posts from './routes/posts';
 import categories from './routes/categories';
 import tags from './routes/tags';
 import media from './routes/media';
+import auth from './routes/auth';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './lib/db';
 
@@ -65,6 +66,7 @@ app.get('/health', async (c) => {
 });
 
 // Routes
+app.route('/api/auth', auth);
 app.route('/api/users', users);
 app.route('/api/posts', posts);
 app.route('/api/categories', categories);
