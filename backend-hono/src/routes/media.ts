@@ -5,8 +5,19 @@ import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+import { authMiddleware, editorOrAdmin } from '../middleware/auth';
 
 const media = new Hono();
+
+// Apply auth to upload and delete routes (read routes are public for serving media)
+// Listing also requires auth to prevent enumeration
+media.use('/upload', authMiddleware);
+media.use('/upload', editorOrAdmin);
+media.delete('/*', authMiddleware);
+media.delete('/*', editorOrAdmin);
+// List route requires auth
+media.get('/', authMiddleware);
+media.get('/', editorOrAdmin);
 
 // ===========================================
 // CONFIGURATION

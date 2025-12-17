@@ -690,6 +690,352 @@
         </div>
       {/if}
 
+      <!-- Content (Markdown) - for textBlock, longread -->
+      {#if hasField('content')}
+        <div class="form-group">
+          <label for="content">{fieldLabels.content}</label>
+          <textarea
+            id="content"
+            bind:value={section.content}
+            placeholder="Markdown контент..."
+            class="form-textarea form-textarea-lg"
+            rows="10"
+          ></textarea>
+          <span class="form-hint">Поддерживается Markdown разметка</span>
+        </div>
+      {/if}
+
+      <!-- Longread specific fields -->
+      {#if hasField('showToc')}
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" bind:checked={section.showToc} />
+            <span>Показать оглавление</span>
+          </label>
+        </div>
+      {/if}
+
+      {#if hasField('tocTitle')}
+        <div class="form-group">
+          <label for="tocTitle">{fieldLabels.tocTitle}</label>
+          <input
+            id="tocTitle"
+            type="text"
+            bind:value={section.tocTitle}
+            placeholder="Содержание"
+            class="form-input"
+          />
+        </div>
+      {/if}
+
+      <!-- Max width for textBlock -->
+      {#if hasField('maxWidth')}
+        <div class="form-group">
+          <label for="maxWidth">{fieldLabels.maxWidth}</label>
+          <select id="maxWidth" bind:value={section.maxWidth} class="form-select">
+            <option value="sm">Узкая (640px)</option>
+            <option value="md">Средняя (768px)</option>
+            <option value="lg">Широкая (1024px)</option>
+            <option value="full">Полная</option>
+          </select>
+        </div>
+      {/if}
+
+      <!-- Video fields -->
+      {#if hasField('videoId')}
+        <div class="form-group">
+          <label for="videoId">{fieldLabels.videoId}</label>
+          <input
+            id="videoId"
+            type="text"
+            bind:value={section.videoId}
+            placeholder="dQw4w9WgXcQ"
+            class="form-input"
+          />
+          <span class="form-hint">ID видео из URL: youtube.com/watch?v=<strong>ID</strong></span>
+        </div>
+      {/if}
+
+      {#if hasField('src')}
+        <div class="form-group">
+          <label for="src">{fieldLabels.src}</label>
+          <input
+            id="src"
+            type="text"
+            bind:value={section.src}
+            placeholder="https://example.com/video.mp4"
+            class="form-input"
+          />
+        </div>
+      {/if}
+
+      {#if hasField('poster')}
+        <div class="form-group">
+          <label for="poster">{fieldLabels.poster}</label>
+          <input
+            id="poster"
+            type="text"
+            bind:value={section.poster}
+            placeholder="https://example.com/poster.jpg"
+            class="form-input"
+          />
+        </div>
+      {/if}
+
+      {#if hasField('aspectRatio')}
+        <div class="form-group">
+          <label for="aspectRatio">{fieldLabels.aspectRatio}</label>
+          <select id="aspectRatio" bind:value={section.aspectRatio} class="form-select">
+            <option value="16:9">16:9 (стандарт)</option>
+            <option value="4:3">4:3</option>
+            <option value="1:1">1:1 (квадрат)</option>
+            <option value="9:16">9:16 (вертикаль)</option>
+          </select>
+        </div>
+      {/if}
+
+      <!-- Video boolean options -->
+      {#if hasField('autoplay') || hasField('muted') || hasField('loop') || hasField('controls')}
+        <div class="form-group">
+          <label>Настройки видео</label>
+          <div class="checkbox-list">
+            {#if hasField('autoplay')}
+              <label class="checkbox-item">
+                <input type="checkbox" bind:checked={section.autoplay} />
+                <span>Автовоспроизведение</span>
+              </label>
+            {/if}
+            {#if hasField('muted')}
+              <label class="checkbox-item">
+                <input type="checkbox" bind:checked={section.muted} />
+                <span>Без звука</span>
+              </label>
+            {/if}
+            {#if hasField('loop')}
+              <label class="checkbox-item">
+                <input type="checkbox" bind:checked={section.loop} />
+                <span>Повтор</span>
+              </label>
+            {/if}
+            {#if hasField('controls')}
+              <label class="checkbox-item">
+                <input type="checkbox" bind:checked={section.controls} />
+                <span>Показать элементы управления</span>
+              </label>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Hero specific fields -->
+      {#if hasField('align')}
+        <div class="form-group">
+          <label for="align">{fieldLabels.align}</label>
+          <select id="align" bind:value={section.align} class="form-select">
+            <option value="left">Слева</option>
+            <option value="center">По центру</option>
+            <option value="right">Справа</option>
+          </select>
+        </div>
+      {/if}
+
+      {#if hasField('height')}
+        <div class="form-group">
+          <label for="height">{fieldLabels.height}</label>
+          <select id="height" bind:value={section.height} class="form-select">
+            <option value="small">Маленькая (50vh)</option>
+            <option value="medium">Средняя (70vh)</option>
+            <option value="large">Большая (100vh)</option>
+          </select>
+        </div>
+      {/if}
+
+      {#if hasField('overlay')}
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" bind:checked={section.overlay} />
+            <span>Затемнение фона</span>
+          </label>
+        </div>
+      {/if}
+
+      {#if hasField('overlayOpacity')}
+        <div class="form-group">
+          <label for="overlayOpacity">{fieldLabels.overlayOpacity}: {section.overlayOpacity || 0.5}</label>
+          <input
+            id="overlayOpacity"
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            bind:value={section.overlayOpacity}
+            class="form-range"
+          />
+        </div>
+      {/if}
+
+      <!-- CTA fields for hero (ctaHref) -->
+      {#if hasField('ctaHref')}
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="ctaText">Текст кнопки</label>
+            <input
+              id="ctaText"
+              type="text"
+              bind:value={section.ctaText}
+              placeholder="Начать"
+              class="form-input"
+            />
+          </div>
+          <div class="form-group">
+            <label for="ctaHref">Ссылка кнопки</label>
+            <input
+              id="ctaHref"
+              type="text"
+              bind:value={section.ctaHref}
+              placeholder="#contact"
+              class="form-input"
+            />
+          </div>
+        </div>
+      {/if}
+
+      {#if hasField('ctaSecondaryText') || hasField('ctaSecondaryHref')}
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="ctaSecondaryText">Вторая кнопка (текст)</label>
+            <input
+              id="ctaSecondaryText"
+              type="text"
+              bind:value={section.ctaSecondaryText}
+              placeholder="Узнать больше"
+              class="form-input"
+            />
+          </div>
+          <div class="form-group">
+            <label for="ctaSecondaryHref">Вторая кнопка (ссылка)</label>
+            <input
+              id="ctaSecondaryHref"
+              type="text"
+              bind:value={section.ctaSecondaryHref}
+              placeholder="#features"
+              class="form-input"
+            />
+          </div>
+        </div>
+      {/if}
+
+      <!-- CTA section fields (buttonText/buttonHref) -->
+      {#if hasField('buttonText') || hasField('buttonHref')}
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="buttonText">Текст кнопки</label>
+            <input
+              id="buttonText"
+              type="text"
+              bind:value={section.buttonText}
+              placeholder="Начать"
+              class="form-input"
+            />
+          </div>
+          <div class="form-group">
+            <label for="buttonHref">Ссылка кнопки</label>
+            <input
+              id="buttonHref"
+              type="text"
+              bind:value={section.buttonHref}
+              placeholder="#contact"
+              class="form-input"
+            />
+          </div>
+        </div>
+      {/if}
+
+      {#if hasField('secondaryText') || hasField('secondaryHref')}
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="secondaryText">Вторая кнопка (текст)</label>
+            <input
+              id="secondaryText"
+              type="text"
+              bind:value={section.secondaryText}
+              placeholder="Узнать больше"
+              class="form-input"
+            />
+          </div>
+          <div class="form-group">
+            <label for="secondaryHref">Вторая кнопка (ссылка)</label>
+            <input
+              id="secondaryHref"
+              type="text"
+              bind:value={section.secondaryHref}
+              placeholder="#features"
+              class="form-input"
+            />
+          </div>
+        </div>
+      {/if}
+
+      <!-- Contact form fields -->
+      {#if hasField('submitText')}
+        <div class="form-group">
+          <label for="submitText">{fieldLabels.submitText}</label>
+          <input
+            id="submitText"
+            type="text"
+            bind:value={section.submitText}
+            placeholder="Отправить"
+            class="form-input"
+          />
+        </div>
+      {/if}
+
+      {#if hasField('successMessage')}
+        <div class="form-group">
+          <label for="successMessage">{fieldLabels.successMessage}</label>
+          <input
+            id="successMessage"
+            type="text"
+            bind:value={section.successMessage}
+            placeholder="Спасибо! Мы свяжемся с вами."
+            class="form-input"
+          />
+        </div>
+      {/if}
+
+      <!-- Partners grayscale -->
+      {#if hasField('grayscale')}
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" bind:checked={section.grayscale} />
+            <span>Ч/Б фильтр для логотипов</span>
+          </label>
+        </div>
+      {/if}
+
+      <!-- Layout/variant -->
+      {#if hasField('layout')}
+        <div class="form-group">
+          <label for="layout">{fieldLabels.layout}</label>
+          <select id="layout" bind:value={section.layout} class="form-select">
+            <option value="grid">Сетка</option>
+            <option value="slider">Слайдер</option>
+            <option value="list">Список</option>
+          </select>
+        </div>
+      {/if}
+
+      {#if hasField('variant')}
+        <div class="form-group">
+          <label for="variant">{fieldLabels.variant}</label>
+          <select id="variant" bind:value={section.variant} class="form-select">
+            <option value="default">Стандартный</option>
+            <option value="primary">Акцентный</option>
+            <option value="minimal">Минималистичный</option>
+          </select>
+        </div>
+      {/if}
+
       <!-- CSS Class -->
       <div class="form-group">
         <label for="className">{fieldLabels.className}</label>
@@ -1076,6 +1422,56 @@
   .form-textarea {
     resize: vertical;
     min-height: 80px;
+  }
+
+  .form-textarea-lg {
+    min-height: 200px;
+    font-family: var(--font-font-family-mono);
+  }
+
+  .form-range {
+    width: 100%;
+    height: 8px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+  }
+
+  .checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    cursor: pointer;
+  }
+
+  .checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+  }
+
+  .checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3);
+    background: var(--color-background-secondary);
+    border-radius: var(--radius-md);
+  }
+
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    cursor: pointer;
+    font-size: var(--font-font-size-sm);
+  }
+
+  .checkbox-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
   }
 
   .form-hint {

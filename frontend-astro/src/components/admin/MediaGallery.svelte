@@ -50,7 +50,21 @@
     error = null;
 
     try {
-      const res = await fetch('/api/media');
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        window.location.href = '/admin/login';
+        return;
+      }
+
+      const res = await fetch('/api/media', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 401) {
+        window.location.href = '/admin/login';
+        return;
+      }
+
       if (!res.ok) throw new Error('Failed to load files');
 
       const data = await res.json();
@@ -68,6 +82,12 @@
     const fileList = input.files;
     if (!fileList?.length) return;
 
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      window.location.href = '/admin/login';
+      return;
+    }
+
     uploading = true;
     uploadProgress = 0;
     error = null;
@@ -80,6 +100,7 @@
 
         const res = await fetch('/api/media/upload', {
           method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
 
@@ -107,10 +128,22 @@
   async function deleteFile(file: MediaFile) {
     if (!confirm(`Удалить файл "${file.name}"?`)) return;
 
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      window.location.href = '/admin/login';
+      return;
+    }
+
     try {
       const res = await fetch(`/api/media${file.path}`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (res.status === 401) {
+        window.location.href = '/admin/login';
+        return;
+      }
 
       if (!res.ok) throw new Error('Failed to delete');
 
