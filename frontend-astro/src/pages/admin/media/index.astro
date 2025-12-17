@@ -1,8 +1,11 @@
 ---
 /**
  * Admin Media Manager
+ *
+ * Управление изображениями, видео и документами
  */
 import Admin from '../../../layouts/Admin.astro';
+import MediaGallery from '../../../components/admin/MediaGallery.svelte';
 
 export const prerender = false;
 ---
@@ -16,89 +19,20 @@ export const prerender = false;
     })();
   </script>
 
-  <div class="media-header">
+  <div class="page-header">
     <p class="page-description">Управление изображениями, видео и документами</p>
-    <button class="btn btn-primary" id="upload-btn">
-      <span>📤</span> Загрузить файлы
-    </button>
   </div>
 
-  <div class="placeholder-content">
-    <div class="placeholder-icon">🖼️</div>
-    <h2>Медиа-библиотека</h2>
-    <p>Галерея загруженных файлов с поиском и фильтрами.</p>
-    <p class="hint">Фаза 7.4 - Media Manager</p>
-  </div>
+  <MediaGallery client:load />
 
   <style>
-    .media-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .page-header {
       margin-bottom: var(--spacing-6);
     }
 
     .page-description {
       margin: 0;
       color: var(--color-text-muted);
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--spacing-2);
-      padding: var(--spacing-3) var(--spacing-5);
-      border: none;
-      border-radius: var(--radius-md);
-      font-size: var(--font-font-size-sm);
-      font-weight: var(--font-font-weight-medium);
-      cursor: pointer;
-      transition: all var(--transition-fast);
-    }
-
-    .btn-primary {
-      background: var(--color-primary);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: var(--color-primary-hover);
-    }
-
-    .placeholder-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: var(--spacing-16);
-      background: var(--color-background);
-      border: 2px dashed var(--color-border);
-      border-radius: var(--radius-lg);
-      text-align: center;
-    }
-
-    .placeholder-icon {
-      font-size: 4rem;
-      margin-bottom: var(--spacing-4);
-    }
-
-    .placeholder-content h2 {
-      margin: 0 0 var(--spacing-2);
-      color: var(--color-text);
-    }
-
-    .placeholder-content p {
-      margin: 0;
-      color: var(--color-text-muted);
-    }
-
-    .hint {
-      margin-top: var(--spacing-4) !important;
-      padding: var(--spacing-2) var(--spacing-4);
-      background: var(--color-info-light);
-      border-radius: var(--radius-md);
-      font-size: var(--font-font-size-sm);
-      color: var(--color-info);
     }
   </style>
 </Admin>
