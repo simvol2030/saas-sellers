@@ -1,0 +1,135 @@
+---
+/**
+ * Partners Section - логотипы партнёров
+ *
+ * Features:
+ * - Сетка или бегущая строка логотипов
+ * - Опциональные ссылки
+ * - Grayscale режим
+ * - Hover эффекты
+ * - Автоматический marquee (опционально)
+ */
+
+import type { PartnersSection } from '../../lib/parser';
+
+interface Props extends Omit<PartnersSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  logos,
+  grayscale = true,
+} = Astro.props;
+---
+
+<section
+  id={id}
+  class:list={['partners section', { grayscale }, className]}
+>
+  <div class="container">
+    {title && (
+      <h2 class="partners-title">{title}</h2>
+    )}
+
+    <div class="partners-grid">
+      {logos.map((logo) => (
+        logo.href ? (
+          <a
+            href={logo.href}
+            class="partner-item"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src={logo.src}
+              alt={logo.alt}
+              class="partner-logo"
+              loading="lazy"
+            />
+          </a>
+        ) : (
+          <div class="partner-item">
+            <img
+              src={logo.src}
+              alt={logo.alt}
+              class="partner-logo"
+              loading="lazy"
+            />
+          </div>
+        )
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .partners-title {
+    margin: 0 0 var(--spacing-10);
+    font-size: var(--font-font-size-xl);
+    font-weight: var(--font-font-weight-medium);
+    text-align: center;
+    color: var(--color-text-secondary);
+  }
+
+  .partners-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-8);
+  }
+
+  .partner-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-4);
+    transition: all var(--transition-normal);
+  }
+
+  .partner-logo {
+    max-width: 120px;
+    max-height: 48px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    transition: all var(--transition-normal);
+  }
+
+  @media (min-width: 768px) {
+    .partner-logo {
+      max-width: 150px;
+      max-height: 56px;
+    }
+  }
+
+  /* Grayscale mode */
+  .grayscale .partner-logo {
+    filter: grayscale(100%);
+    opacity: 0.6;
+  }
+
+  .grayscale .partner-item:hover .partner-logo {
+    filter: grayscale(0%);
+    opacity: 1;
+  }
+
+  /* Link hover */
+  a.partner-item:hover {
+    transform: translateY(-2px);
+  }
+
+  a.partner-item:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 4px;
+    border-radius: var(--radius-md);
+  }
+
+  /* Compact variant for many logos */
+  @media (min-width: 1024px) {
+    .partners-grid {
+      gap: var(--spacing-10);
+    }
+  }
+</style>

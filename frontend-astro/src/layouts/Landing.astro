@@ -34,6 +34,13 @@ import Pricing from '../components/sections/Pricing.astro';
 import CompareTable from '../components/sections/CompareTable.astro';
 import Testimonials from '../components/sections/Testimonials.astro';
 
+// Phase 5 content section components
+import Features from '../components/sections/Features.astro';
+import Timeline from '../components/sections/Timeline.astro';
+import Stats from '../components/sections/Stats.astro';
+import Team from '../components/sections/Team.astro';
+import Partners from '../components/sections/Partners.astro';
+
 interface Props {
   data: LandingPageData;
   headerConfig?: HeaderConfig;
@@ -80,6 +87,12 @@ const sectionComponents: Record<string, any> = {
   pricing: Pricing,
   compareTable: CompareTable,
   testimonials: Testimonials,
+  // Phase 5
+  features: Features,
+  timeline: Timeline,
+  stats: Stats,
+  team: Team,
+  partners: Partners,
 };
 ---
 
