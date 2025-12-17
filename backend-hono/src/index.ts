@@ -12,6 +12,7 @@ import tags from './routes/tags';
 import media from './routes/media';
 import auth from './routes/auth';
 import adminPages from './routes/pages';
+import publicPages from './routes/public-pages';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './lib/db';
 
@@ -74,6 +75,7 @@ app.route('/api/categories', categories);
 app.route('/api/tags', tags);
 app.route('/api/media', media);
 app.route('/api/admin/pages', adminPages);
+app.route('/api/pages', publicPages);
 
 // Error handling
 app.onError(errorHandler);
