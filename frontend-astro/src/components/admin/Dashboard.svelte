@@ -71,7 +71,9 @@
       }
 
       // Load media stats
-      const mediaRes = await fetch('/api/media');
+      const mediaRes = await fetch('/api/media', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (mediaRes.ok) {
         const data = await mediaRes.json();
         stats.totalMedia = data.total;

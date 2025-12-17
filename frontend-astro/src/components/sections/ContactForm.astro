@@ -444,7 +444,12 @@ const formId = id || `form-${Math.random().toString(36).substr(2, 9)}`;
         const formData = new FormData(form);
         const data = Object.fromEntries(formData);
 
-        // Submit to API (placeholder - implement your endpoint)
+        // PLACEHOLDER: This endpoint needs to be implemented in your backend
+        // Options:
+        // 1. Create /api/contact route in backend-hono
+        // 2. Use email service (SendGrid, Mailgun, etc.)
+        // 3. Store in database for admin review
+        // For now, this will fail until you implement the endpoint
         const response = await fetch('/api/contact', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
