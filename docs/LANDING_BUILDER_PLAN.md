@@ -126,29 +126,48 @@ data/media/
 
 ---
 
-### ФАЗА 7: Админка
+### ФАЗА 7: Админка (в работе)
 
-**Функционал:**
-- [ ] **Dashboard** — обзор контента
-- [ ] **Layout Editor**
-  - Настройка Header (меню, логотип)
-  - Настройка Footer
-- [ ] **Page Builder**
-  - Выбор секций из библиотеки
-  - Drag-n-drop порядок
-  - Генерация MD шаблона
-- [ ] **Media Manager**
-  - Загрузка файлов
-  - Галерея загруженных
-  - Копирование путей
-- [ ] **Design System Editor**
-  - Цвета
-  - Шрифты
-  - Spacing
-- [ ] **Pages List**
-  - Список всех страниц
-  - Статус (draft/published)
-  - SSG/SSR настройка
+**Под-фазы:**
+
+#### 7.1 Инфраструктура ✅
+- [x] Расширенная Prisma schema (User, Session, Page, Media, Settings)
+- [x] JWT аутентификация (jose + bcryptjs)
+- [x] Auth routes (login, refresh, logout, register)
+- [x] Astro SSR mode + @astrojs/node adapter
+- [x] Svelte 5 интеграция для Islands
+- [x] Admin layout (sidebar, theme toggle, user menu)
+- [x] Login page + защита admin routes
+- [x] Dashboard placeholder + placeholder страницы
+
+#### 7.2 Pages CRUD (следующая)
+- [ ] API endpoints для pages
+- [ ] Pages List (таблица с фильтрами)
+- [ ] Page Editor (базовый)
+- [ ] Publish/Unpublish workflow
+
+#### 7.3 Section Editor
+- [ ] Visual формы для каждого типа секции
+- [ ] Drag-n-drop сортировка секций
+- [ ] Preview mode
+- [ ] Добавление/удаление секций
+
+#### 7.4 Media Manager
+- [ ] Галерея с grid view
+- [ ] Upload с progress
+- [ ] Редактирование alt/caption
+- [ ] Интеграция с Section Editor
+
+#### 7.5 Design System Editor
+- [ ] Color picker для theme
+- [ ] Font selector
+- [ ] Spacing controls
+- [ ] Live preview
+
+#### 7.6 Dashboard & Settings
+- [ ] Dashboard со статистикой
+- [ ] Header/Footer editor
+- [ ] Site settings (logo, title, etc.)
 
 **Mobile-friendly:** Адаптивный интерфейс для работы с телефона
 
@@ -230,8 +249,8 @@ frontend-astro/
 
 ## Текущий статус
 
-**Активная фаза:** ФАЗА 6 (завершена) -> ФАЗА 7 (Админка)
-**Прогресс:** ~85% (Фазы 1-6 завершены, 23 секции)
+**Активная фаза:** ФАЗА 7.2 (Pages CRUD)
+**Прогресс:** ~90% (Фазы 1-6 + 7.1 завершены)
 
 ### Что сделано:
 
@@ -279,6 +298,15 @@ frontend-astro/
 - `InstagramFeed.astro` - grid лента, lightbox, лайки
 - `FacebookPost.astro` - пост с реакциями, комментариями
 - `Longread.astro` - длинная статья с TOC, прогресс чтения
+
+**Фаза 7.1 (Инфраструктура админки):**
+- Prisma schema: User, Session, Page, Media, SiteSetting, ThemeOverride
+- JWT auth: login, refresh, logout, register, change-password
+- Astro SSR mode + @astrojs/node adapter
+- Svelte 5 интеграция для интерактивных компонентов
+- Admin layout: sidebar, theme toggle, user menu, responsive
+- Login page с JWT token storage
+- Dashboard + placeholder страницы (Pages, Media, Theme, Settings)
 
 ---
 
