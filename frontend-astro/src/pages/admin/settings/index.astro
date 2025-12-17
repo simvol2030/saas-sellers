@@ -1,8 +1,11 @@
 ---
 /**
  * Admin Settings
+ *
+ * Общие настройки сайта, Header, Footer и SEO
  */
 import Admin from '../../../layouts/Admin.astro';
+import SiteSettings from '../../../components/admin/SiteSettings.svelte';
 
 export const prerender = false;
 ---
@@ -16,61 +19,5 @@ export const prerender = false;
     })();
   </script>
 
-  <div class="settings-header">
-    <p class="page-description">Общие настройки сайта, Header, Footer и SEO</p>
-  </div>
-
-  <div class="placeholder-content">
-    <div class="placeholder-icon">⚙️</div>
-    <h2>Настройки</h2>
-    <p>Конфигурация сайта, логотипа, меню и метаданных.</p>
-    <p class="hint">Фаза 7.6 - Dashboard & Settings</p>
-  </div>
-
-  <style>
-    .settings-header {
-      margin-bottom: var(--spacing-6);
-    }
-
-    .page-description {
-      margin: 0;
-      color: var(--color-text-muted);
-    }
-
-    .placeholder-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: var(--spacing-16);
-      background: var(--color-background);
-      border: 2px dashed var(--color-border);
-      border-radius: var(--radius-lg);
-      text-align: center;
-    }
-
-    .placeholder-icon {
-      font-size: 4rem;
-      margin-bottom: var(--spacing-4);
-    }
-
-    .placeholder-content h2 {
-      margin: 0 0 var(--spacing-2);
-      color: var(--color-text);
-    }
-
-    .placeholder-content p {
-      margin: 0;
-      color: var(--color-text-muted);
-    }
-
-    .hint {
-      margin-top: var(--spacing-4) !important;
-      padding: var(--spacing-2) var(--spacing-4);
-      background: var(--color-info-light);
-      border-radius: var(--radius-md);
-      font-size: var(--font-font-size-sm);
-      color: var(--color-info);
-    }
-  </style>
+  <SiteSettings client:load />
 </Admin>
