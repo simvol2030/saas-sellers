@@ -1,0 +1,218 @@
+---
+/**
+ * HeroMin Section - мини-баннер для подстраниц
+ *
+ * Features:
+ * - Компактный баннер с заголовком
+ * - Хлебные крошки (breadcrumbs)
+ * - Опциональный фон
+ * - Поддержка тёмной темы
+ */
+
+import type { HeroMinSection } from '../../lib/parser';
+
+interface Props extends Omit<HeroMinSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  subtitle,
+  breadcrumbs = [],
+  backgroundImage,
+} = Astro.props;
+
+// Add home breadcrumb if not present
+const fullBreadcrumbs = breadcrumbs.length > 0
+  ? [{ label: 'Главная', href: '/' }, ...breadcrumbs]
+  : [];
+---
+
+<section
+  id={id}
+  class:list={['hero-min', { 'has-bg': backgroundImage }, className]}
+>
+  {backgroundImage && (
+    <div class="hero-min-background">
+      <img src={backgroundImage} alt="" loading="eager" />
+      <div class="hero-min-overlay" />
+    </div>
+  )}
+
+  <div class="hero-min-content container">
+    {fullBreadcrumbs.length > 0 && (
+      <nav class="breadcrumbs" aria-label="Хлебные крошки">
+        <ol class="breadcrumbs-list">
+          {fullBreadcrumbs.map((crumb, index) => (
+            <li class="breadcrumbs-item">
+              {index < fullBreadcrumbs.length - 1 ? (
+                <>
+                  <a href={crumb.href} class="breadcrumbs-link">
+                    {crumb.label}
+                  </a>
+                  <span class="breadcrumbs-separator" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="m9 18 6-6-6-6"/>
+                    </svg>
+                  </span>
+                </>
+              ) : (
+                <span class="breadcrumbs-current" aria-current="page">
+                  {crumb.label}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      </nav>
+    )}
+
+    <h1 class="hero-min-title">{title}</h1>
+
+    {subtitle && (
+      <p class="hero-min-subtitle">{subtitle}</p>
+    )}
+  </div>
+</section>
+
+<style>
+  .hero-min {
+    position: relative;
+    padding: var(--spacing-12) 0;
+    background: var(--color-background-secondary);
+    overflow: hidden;
+  }
+
+  .hero-min.has-bg {
+    padding: var(--spacing-16) 0;
+  }
+
+  @media (min-width: 768px) {
+    .hero-min {
+      padding: var(--spacing-16) 0;
+    }
+
+    .hero-min.has-bg {
+      padding: var(--spacing-20) 0;
+    }
+  }
+
+  /* Background */
+  .hero-min-background {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .hero-min-background img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hero-min-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(15, 23, 42, 0.7) 0%,
+      rgba(30, 64, 175, 0.6) 100%
+    );
+  }
+
+  /* Content */
+  .hero-min-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Breadcrumbs */
+  .breadcrumbs {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .breadcrumbs-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-1);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .breadcrumbs-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+  }
+
+  .breadcrumbs-link {
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+  }
+
+  .has-bg .breadcrumbs-link {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .breadcrumbs-link:hover {
+    color: var(--color-primary);
+  }
+
+  .has-bg .breadcrumbs-link:hover {
+    color: white;
+  }
+
+  .breadcrumbs-separator {
+    display: flex;
+    color: var(--color-text-muted);
+  }
+
+  .has-bg .breadcrumbs-separator {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .breadcrumbs-current {
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-muted);
+  }
+
+  .has-bg .breadcrumbs-current {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  /* Title */
+  .hero-min-title {
+    margin: 0;
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    line-height: var(--font-line-height-tight);
+    color: var(--color-text);
+  }
+
+  .has-bg .hero-min-title {
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  @media (min-width: 768px) {
+    .hero-min-title {
+      font-size: var(--font-font-size-4xl);
+    }
+  }
+
+  /* Subtitle */
+  .hero-min-subtitle {
+    margin: var(--spacing-3) 0 0;
+    font-size: var(--font-font-size-lg);
+    color: var(--color-text-secondary);
+    max-width: 600px;
+  }
+
+  .has-bg .hero-min-subtitle {
+    color: rgba(255, 255, 255, 0.9);
+  }
+</style>

@@ -1,0 +1,258 @@
+---
+/**
+ * Snippet Section - фото + текст
+ *
+ * Features:
+ * - Изображение с текстом рядом
+ * - Позиция изображения (left/right)
+ * - Заголовок, контент (Markdown)
+ * - Опциональная CTA кнопка
+ * - Адаптивный layout
+ */
+
+import type { SnippetSection } from '../../lib/parser';
+
+interface Props extends Omit<SnippetSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  content,
+  image,
+  imageAlt = '',
+  imagePosition = 'left',
+  ctaText,
+  ctaHref,
+} = Astro.props;
+
+// Simple markdown to HTML conversion
+function simpleMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>')
+    .replace(/^\- (.*$)/gim, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+}
+
+const htmlContent = simpleMarkdown(content);
+---
+
+<section
+  id={id}
+  class:list={[
+    'snippet section',
+    `snippet-image-${imagePosition}`,
+    className,
+  ]}
+>
+  <div class="container">
+    <div class="snippet-grid">
+      {/* Image */}
+      <div class="snippet-image-wrapper">
+        <img
+          src={image}
+          alt={imageAlt || title}
+          class="snippet-image"
+          loading="lazy"
+        />
+      </div>
+
+      {/* Content */}
+      <div class="snippet-content">
+        <h2 class="snippet-title">{title}</h2>
+
+        <div class="snippet-text prose" set:html={htmlContent} />
+
+        {ctaText && ctaHref && (
+          <a href={ctaHref} class="btn btn-primary snippet-cta">
+            {ctaText}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </a>
+        )}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .snippet {
+    background: var(--color-background);
+  }
+
+  .snippet-grid {
+    display: grid;
+    gap: var(--spacing-8);
+    align-items: center;
+  }
+
+  @media (min-width: 768px) {
+    .snippet-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-12);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .snippet-grid {
+      gap: var(--spacing-16);
+    }
+  }
+
+  /* Image position variants */
+  .snippet-image-right .snippet-image-wrapper {
+    order: 1;
+  }
+
+  @media (min-width: 768px) {
+    .snippet-image-right .snippet-image-wrapper {
+      order: 2;
+    }
+
+    .snippet-image-right .snippet-content {
+      order: 1;
+    }
+  }
+
+  /* Image */
+  .snippet-image-wrapper {
+    position: relative;
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .snippet-image-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-2xl);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+    pointer-events: none;
+  }
+
+  .snippet-image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .snippet-image {
+      aspect-ratio: 1 / 1;
+    }
+  }
+
+  /* Content */
+  .snippet-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+  }
+
+  .snippet-title {
+    margin: 0;
+    font-size: var(--font-font-size-2xl);
+    font-weight: var(--font-font-weight-bold);
+    line-height: var(--font-line-height-tight);
+    color: var(--color-text);
+  }
+
+  @media (min-width: 768px) {
+    .snippet-title {
+      font-size: var(--font-font-size-3xl);
+    }
+  }
+
+  /* Text prose styles */
+  .snippet-text {
+    color: var(--color-text-secondary);
+    line-height: var(--font-line-height-relaxed);
+  }
+
+  .snippet-text :global(p) {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .snippet-text :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .snippet-text :global(strong) {
+    font-weight: var(--font-font-weight-semibold);
+    color: var(--color-text);
+  }
+
+  .snippet-text :global(a) {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .snippet-text :global(a:hover) {
+    color: var(--color-primary-hover);
+  }
+
+  .snippet-text :global(ul) {
+    margin: var(--spacing-4) 0;
+    padding-left: var(--spacing-6);
+  }
+
+  .snippet-text :global(li) {
+    margin-bottom: var(--spacing-2);
+  }
+
+  .snippet-text :global(li::marker) {
+    color: var(--color-primary);
+  }
+
+  /* CTA */
+  .snippet-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    align-self: flex-start;
+    margin-top: var(--spacing-4);
+  }
+
+  .snippet-cta svg {
+    transition: transform var(--transition-fast);
+  }
+
+  .snippet-cta:hover svg {
+    transform: translateX(4px);
+  }
+
+  /* Decorative elements */
+  .snippet-image-wrapper::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: 20px;
+    bottom: 20px;
+    background: var(--color-primary-light);
+    border-radius: var(--radius-2xl);
+    z-index: -1;
+    opacity: 0.5;
+  }
+
+  @media (min-width: 768px) {
+    .snippet-image-left .snippet-image-wrapper::before {
+      left: -30px;
+      right: 30px;
+    }
+
+    .snippet-image-right .snippet-image-wrapper::before {
+      left: 30px;
+      right: -30px;
+    }
+  }
+</style>
