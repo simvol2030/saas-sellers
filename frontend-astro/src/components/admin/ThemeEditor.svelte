@@ -116,24 +116,53 @@
     success = 'Настройки сброшены';
   }
 
-  // Save theme
+  // Save theme to API
   async function saveTheme() {
     saving = true;
     success = null;
 
     try {
-      // For now, save to localStorage
-      // In production, this would save to the database
+      const token = localStorage.getItem('accessToken');
+
+      // Convert variables to overrides format
+      const overrides = variables.map(v => ({
+        name: v.name.replace(/^--/, '').replace(/-/g, '.'), // --color-primary -> color.primary
+        value: v.value,
+        isActive: true,
+      }));
+
+      const res = await fetch('/api/admin/theme/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ overrides }),
+      });
+
+      if (res.ok) {
+        success = 'Тема сохранена';
+        // Also save to localStorage as backup
+        const themeData = variables.reduce((acc, v) => {
+          acc[v.name] = v.value;
+          return acc;
+        }, {} as Record<string, string>);
+        localStorage.setItem('themeOverrides', JSON.stringify(themeData));
+      } else {
+        throw new Error('API save failed');
+      }
+
+      applyPreview();
+    } catch (e) {
+      console.error('Save error:', e);
+      // Fallback: save to localStorage
       const themeData = variables.reduce((acc, v) => {
         acc[v.name] = v.value;
         return acc;
       }, {} as Record<string, string>);
-
       localStorage.setItem('themeOverrides', JSON.stringify(themeData));
       applyPreview();
-      success = 'Тема сохранена';
-    } catch (e) {
-      console.error('Save error:', e);
+      success = 'Тема сохранена локально';
     } finally {
       saving = false;
     }
@@ -161,8 +190,42 @@
     URL.revokeObjectURL(url);
   }
 
-  // Load saved theme
-  function loadSavedTheme() {
+  // Load saved theme from API
+  async function loadSavedTheme() {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch('/api/admin/theme', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.overrides) {
+          // Convert from API format (dot notation) to CSS variable names
+          const themeData: Record<string, string> = {};
+          Object.entries(data.overrides).forEach(([name, value]) => {
+            const cssVarName = '--' + name.replace(/\./g, '-');
+            themeData[cssVarName] = value as string;
+          });
+
+          variables = variables.map(v => ({
+            ...v,
+            value: themeData[v.name] || v.value,
+          }));
+        }
+      } else {
+        // Fallback to localStorage
+        loadFromLocalStorage();
+      }
+    } catch (e) {
+      console.error('Load error:', e);
+      // Fallback to localStorage
+      loadFromLocalStorage();
+    }
+  }
+
+  // Load from localStorage (fallback)
+  function loadFromLocalStorage() {
     try {
       const saved = localStorage.getItem('themeOverrides');
       if (saved) {
@@ -173,18 +236,18 @@
         }));
       }
     } catch (e) {
-      console.error('Load error:', e);
+      console.error('Load from localStorage error:', e);
     }
   }
 
   // Toggle preview
-  function togglePreview() {
+  async function togglePreview() {
     previewMode = !previewMode;
     if (previewMode) {
       applyPreview();
     } else {
       // Reload page styles
-      loadSavedTheme();
+      await loadSavedTheme();
       applyPreview();
     }
   }

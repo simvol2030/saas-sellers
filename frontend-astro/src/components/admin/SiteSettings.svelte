@@ -91,40 +91,97 @@
     { id: 'footer', name: 'Подвал', icon: '🔽' },
   ];
 
-  // Load settings
-  function loadSettings() {
+  // Load settings from API
+  async function loadSettings() {
     try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch('/api/admin/settings', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Merge settings from all groups
+        const merged: Partial<Settings> = {};
+        if (data.settings) {
+          Object.values(data.settings).forEach((group: any) => {
+            Object.assign(merged, group);
+          });
+        }
+        settings = { ...defaultSettings, ...merged };
+      } else {
+        // Fallback to localStorage if API fails
+        const saved = localStorage.getItem('siteSettings');
+        if (saved) {
+          settings = { ...defaultSettings, ...JSON.parse(saved) };
+        }
+      }
+    } catch (e) {
+      console.error('Load settings error:', e);
+      // Fallback to localStorage
       const saved = localStorage.getItem('siteSettings');
       if (saved) {
         settings = { ...defaultSettings, ...JSON.parse(saved) };
       }
-    } catch (e) {
-      console.error('Load settings error:', e);
     }
   }
 
-  // Save settings
+  // Save settings to API
   async function saveSettings() {
     saving = true;
     success = null;
     error = null;
 
     try {
-      // Save to localStorage for now
-      // In production, save to database via API
-      localStorage.setItem('siteSettings', JSON.stringify(settings));
-      success = 'Настройки сохранены';
+      const token = localStorage.getItem('accessToken');
+
+      // Convert settings to array format for bulk update
+      const settingsArray = Object.entries(settings).map(([key, value]) => ({
+        key,
+        value,
+        group: getGroupForKey(key),
+      }));
+
+      const res = await fetch('/api/admin/settings/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ settings: settingsArray }),
+      });
+
+      if (res.ok) {
+        success = 'Настройки сохранены';
+        // Also save to localStorage as backup
+        localStorage.setItem('siteSettings', JSON.stringify(settings));
+      } else {
+        throw new Error('API save failed');
+      }
     } catch (e) {
-      error = 'Ошибка сохранения';
+      console.error('Save error:', e);
+      // Fallback: save to localStorage
+      localStorage.setItem('siteSettings', JSON.stringify(settings));
+      success = 'Настройки сохранены локально';
     } finally {
       saving = false;
     }
   }
 
+  // Get group for settings key
+  function getGroupForKey(key: string): string {
+    if (key.startsWith('social')) return 'contact';
+    if (key.startsWith('default') || key.includes('Analytics') || key.includes('Metrika')) return 'seo';
+    if (key.startsWith('header')) return 'header';
+    if (key.startsWith('footer') || key === 'copyrightText' || key === 'showSocialInFooter') return 'footer';
+    return 'general';
+  }
+
   // Reset to defaults
-  function resetSettings() {
+  async function resetSettings() {
     if (!confirm('Сбросить все настройки к значениям по умолчанию?')) return;
     settings = { ...defaultSettings };
+    await saveSettings();
     success = 'Настройки сброшены';
   }
 

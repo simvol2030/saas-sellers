@@ -5,14 +5,12 @@ import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { logger } from 'hono/logger';
 import { rateLimiter } from 'hono-rate-limiter';
-import users from './routes/users';
-import posts from './routes/posts';
-import categories from './routes/categories';
-import tags from './routes/tags';
 import media from './routes/media';
 import auth from './routes/auth';
 import adminPages from './routes/pages';
 import publicPages from './routes/public-pages';
+import settings from './routes/settings';
+import theme from './routes/theme';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './lib/db';
 
@@ -69,12 +67,10 @@ app.get('/health', async (c) => {
 
 // Routes
 app.route('/api/auth', auth);
-app.route('/api/users', users);
-app.route('/api/posts', posts);
-app.route('/api/categories', categories);
-app.route('/api/tags', tags);
 app.route('/api/media', media);
 app.route('/api/admin/pages', adminPages);
+app.route('/api/admin/settings', settings);
+app.route('/api/admin/theme', theme);
 app.route('/api/pages', publicPages);
 
 // Error handling
