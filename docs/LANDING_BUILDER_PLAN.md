@@ -63,27 +63,27 @@ data/media/
 
 ---
 
-### ФАЗА 2: Базовые секции
+### ФАЗА 2: Базовые секции ✅
 
 **Компоненты:**
-- [ ] **Hero** — главный баннер (фото/видео фон, заголовок, CTA)
-- [ ] **HeroMin** — мини-баннер для подстраниц
-- [ ] **TextBlock** — текстовый блок с Markdown
-- [ ] **Snippet** — фото + текст (позиция настраивается)
-- [ ] **CTA** — призыв к действию
+- [x] **Hero** — главный баннер (фото/видео фон, заголовок, CTA)
+- [x] **HeroMin** — мини-баннер для подстраниц
+- [x] **TextBlock** — текстовый блок с Markdown
+- [x] **Snippet** — фото + текст (позиция настраивается)
+- [x] **CTA** — призыв к действию
 
 **Результат:** Можно собрать простой лендинг
 
 ---
 
-### ФАЗА 3: Медиа секции
+### ФАЗА 3: Медиа секции ✅
 
 **Компоненты:**
-- [ ] **PhotoGallery** — галерея с lightbox и swipe
-- [ ] **PhotoSlider** — слайдер изображений
-- [ ] **VideoYouTube** — встроенное YouTube видео
-- [ ] **VideoLocal** — локальное видео (autoplay on scroll, muted)
-- [ ] **MediaMix** — Instagram-style (фото + видео + текст expand)
+- [x] **PhotoGallery** — галерея с lightbox и swipe
+- [x] **PhotoSlider** — слайдер изображений
+- [x] **VideoYouTube** — встроенное YouTube видео
+- [x] **VideoLocal** — локальное видео (autoplay on scroll, muted)
+- [x] **MediaMix** — Instagram-style (фото + видео + текст expand)
 
 **Результат:** Полная поддержка медиа контента
 
@@ -230,10 +230,12 @@ frontend-astro/
 
 ## Текущий статус
 
-**Активная фаза:** ФАЗА 1 (завершена) -> ФАЗА 2
-**Прогресс:** ~15% (Фаза 1 завершена)
+**Активная фаза:** ФАЗА 3 (завершена) -> ФАЗА 4
+**Прогресс:** ~45% (Фазы 1-3 завершены)
 
 ### Что сделано:
+
+**Фаза 1 (Инфраструктура):**
 - `theme.config.ts` - полная дизайн-система с CSS переменными
 - `theme.css` - стили для светлой/тёмной темы
 - `Header.astro` - двухуровневое меню с theme toggle
@@ -244,6 +246,20 @@ frontend-astro/
 - `media.ts` - API для upload/serve медиа
 - Content Collection `landings` - схема для MD файлов
 - Пример лендинга `home.md`
+
+**Фаза 2 (Базовые секции):**
+- `Hero.astro` - баннер с фото/видео фоном, overlay, CTA
+- `HeroMin.astro` - мини-баннер с breadcrumbs
+- `TextBlock.astro` - текст с Markdown, prose стили
+- `Snippet.astro` - фото + текст с позиционированием
+- `CTA.astro` - призыв к действию (3 варианта)
+
+**Фаза 3 (Медиа секции):**
+- `PhotoGallery.astro` - галерея с lightbox, keyboard nav, swipe
+- `PhotoSlider.astro` - слайдер с autoplay, progress bar, swipe
+- `VideoYouTube.astro` - privacy-enhanced embed, lazy loading
+- `VideoLocal.astro` - autoplay on scroll, sound toggle, progress
+- `MediaMix.astro` - Instagram-style grid с expand modal
 
 ---
 

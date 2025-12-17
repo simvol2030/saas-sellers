@@ -20,6 +20,13 @@ import TextBlock from '../components/sections/TextBlock.astro';
 import Snippet from '../components/sections/Snippet.astro';
 import CTA from '../components/sections/CTA.astro';
 
+// Phase 3 media section components
+import PhotoGallery from '../components/sections/PhotoGallery.astro';
+import PhotoSlider from '../components/sections/PhotoSlider.astro';
+import VideoYouTube from '../components/sections/VideoYouTube.astro';
+import VideoLocal from '../components/sections/VideoLocal.astro';
+import MediaMix from '../components/sections/MediaMix.astro';
+
 interface Props {
   data: LandingPageData;
   headerConfig?: HeaderConfig;
@@ -48,11 +55,18 @@ const visibleSections = sections.filter(section => !section.hidden);
 
 // Map of section types to components
 const sectionComponents: Record<string, any> = {
+  // Phase 2
   hero: Hero,
   heroMin: HeroMin,
   textBlock: TextBlock,
   snippet: Snippet,
   cta: CTA,
+  // Phase 3
+  photoGallery: PhotoGallery,
+  photoSlider: PhotoSlider,
+  videoYouTube: VideoYouTube,
+  videoLocal: VideoLocal,
+  mediaMix: MediaMix,
 };
 ---
 
