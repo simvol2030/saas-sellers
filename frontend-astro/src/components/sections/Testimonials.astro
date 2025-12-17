@@ -1,0 +1,493 @@
+---
+/**
+ * Testimonials Section - отзывы (карточки/слайдер)
+ *
+ * Features:
+ * - Два layout: grid и slider
+ * - Аватары и рейтинг звёздами
+ * - Цитаты с кавычками
+ * - Slider с autoplay и swipe
+ * - Адаптивная сетка
+ */
+
+import type { TestimonialsSection } from '../../lib/parser';
+
+interface Props extends Omit<TestimonialsSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  items,
+  layout = 'grid',
+} = Astro.props;
+
+const sliderId = id || `testimonials-${Math.random().toString(36).substr(2, 9)}`;
+
+function renderStars(rating: number) {
+  const fullStars = Math.floor(rating);
+  const hasHalf = rating % 1 >= 0.5;
+  const emptyStars = 5 - fullStars - (hasHalf ? 1 : 0);
+
+  return { fullStars, hasHalf, emptyStars };
+}
+---
+
+<section
+  id={id}
+  class:list={['testimonials section', `layout-${layout}`, className]}
+>
+  <div class="container">
+    {title && (
+      <h2 class="testimonials-title">{title}</h2>
+    )}
+
+    {layout === 'grid' ? (
+      <!-- Grid Layout -->
+      <div class="testimonials-grid">
+        {items.map((item) => {
+          const stars = item.rating ? renderStars(item.rating) : null;
+          return (
+            <div class="testimonial-card">
+              <div class="testimonial-quote">
+                <svg class="quote-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" opacity="0.15">
+                  <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+                </svg>
+                <p class="testimonial-content">{item.content}</p>
+              </div>
+
+              {stars && (
+                <div class="testimonial-rating" aria-label={`Рейтинг: ${item.rating} из 5`}>
+                  {[...Array(stars.fullStars)].map(() => (
+                    <svg class="star star-full" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  ))}
+                  {stars.hasHalf && (
+                    <svg class="star star-half" width="16" height="16" viewBox="0 0 24 24">
+                      <defs>
+                        <linearGradient id="half-star">
+                          <stop offset="50%" stop-color="currentColor"/>
+                          <stop offset="50%" stop-color="transparent"/>
+                        </linearGradient>
+                      </defs>
+                      <path fill="url(#half-star)" stroke="currentColor" stroke-width="1" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  )}
+                  {[...Array(stars.emptyStars)].map(() => (
+                    <svg class="star star-empty" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  ))}
+                </div>
+              )}
+
+              <div class="testimonial-author">
+                {item.avatar && (
+                  <img
+                    src={item.avatar}
+                    alt={item.author}
+                    class="testimonial-avatar"
+                    loading="lazy"
+                  />
+                )}
+                <div class="testimonial-author-info">
+                  <span class="testimonial-author-name">{item.author}</span>
+                  {item.role && (
+                    <span class="testimonial-author-role">{item.role}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <!-- Slider Layout -->
+      <div class="testimonials-slider" data-slider={sliderId}>
+        <div class="testimonials-slider-track">
+          {items.map((item, index) => {
+            const stars = item.rating ? renderStars(item.rating) : null;
+            return (
+              <div class="testimonial-slide" data-index={index}>
+                <div class="testimonial-card">
+                  <div class="testimonial-quote">
+                    <svg class="quote-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" opacity="0.15">
+                      <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+                    </svg>
+                    <p class="testimonial-content">{item.content}</p>
+                  </div>
+
+                  {stars && (
+                    <div class="testimonial-rating" aria-label={`Рейтинг: ${item.rating} из 5`}>
+                      {[...Array(stars.fullStars)].map(() => (
+                        <svg class="star star-full" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                      ))}
+                      {stars.hasHalf && (
+                        <svg class="star star-half" width="16" height="16" viewBox="0 0 24 24">
+                          <defs>
+                            <linearGradient id={`half-star-${index}`}>
+                              <stop offset="50%" stop-color="currentColor"/>
+                              <stop offset="50%" stop-color="transparent"/>
+                            </linearGradient>
+                          </defs>
+                          <path fill={`url(#half-star-${index})`} stroke="currentColor" stroke-width="1" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                      )}
+                      {[...Array(stars.emptyStars)].map(() => (
+                        <svg class="star star-empty" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                      ))}
+                    </div>
+                  )}
+
+                  <div class="testimonial-author">
+                    {item.avatar && (
+                      <img
+                        src={item.avatar}
+                        alt={item.author}
+                        class="testimonial-avatar"
+                        loading="lazy"
+                      />
+                    )}
+                    <div class="testimonial-author-info">
+                      <span class="testimonial-author-name">{item.author}</span>
+                      {item.role && (
+                        <span class="testimonial-author-role">{item.role}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <!-- Navigation -->
+        <button type="button" class="slider-nav slider-prev" aria-label="Предыдущий отзыв">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+        </button>
+        <button type="button" class="slider-nav slider-next" aria-label="Следующий отзыв">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </button>
+
+        <!-- Dots -->
+        <div class="slider-dots">
+          {items.map((_, index) => (
+            <button
+              type="button"
+              class:list={['slider-dot', { active: index === 0 }]}
+              data-dot={index}
+              aria-label={`Перейти к отзыву ${index + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .testimonials-title {
+    margin: 0 0 var(--spacing-12);
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    text-align: center;
+    color: var(--color-text);
+  }
+
+  /* Grid Layout */
+  .testimonials-grid {
+    display: grid;
+    gap: var(--spacing-6);
+  }
+
+  @media (min-width: 768px) {
+    .testimonials-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .testimonials-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* Card */
+  .testimonial-card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-6);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    transition: box-shadow var(--transition-normal);
+  }
+
+  .testimonial-card:hover {
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Quote */
+  .testimonial-quote {
+    position: relative;
+    flex: 1;
+    margin-bottom: var(--spacing-4);
+  }
+
+  .quote-icon {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: var(--color-primary);
+  }
+
+  .testimonial-content {
+    margin: 0;
+    padding-left: var(--spacing-10);
+    font-size: var(--font-font-size-base);
+    line-height: var(--font-line-height-relaxed);
+    color: var(--color-text-secondary);
+    font-style: italic;
+  }
+
+  /* Rating */
+  .testimonial-rating {
+    display: flex;
+    gap: var(--spacing-1);
+    margin-bottom: var(--spacing-4);
+    padding-left: var(--spacing-10);
+  }
+
+  .star {
+    color: var(--color-warning);
+  }
+
+  .star-empty {
+    color: var(--color-border);
+  }
+
+  /* Author */
+  .testimonial-author {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding-left: var(--spacing-10);
+  }
+
+  .testimonial-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    object-fit: cover;
+  }
+
+  .testimonial-author-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .testimonial-author-name {
+    font-weight: var(--font-font-weight-semibold);
+    color: var(--color-text);
+  }
+
+  .testimonial-author-role {
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-muted);
+  }
+
+  /* Slider Layout */
+  .testimonials-slider {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .testimonials-slider-track {
+    display: flex;
+    transition: transform 0.5s ease-in-out;
+  }
+
+  .testimonial-slide {
+    flex: 0 0 100%;
+    padding: 0 var(--spacing-12);
+  }
+
+  @media (min-width: 768px) {
+    .testimonial-slide {
+      flex: 0 0 50%;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .testimonial-slide {
+      flex: 0 0 33.333%;
+    }
+  }
+
+  .layout-slider .testimonial-card {
+    height: 100%;
+  }
+
+  /* Slider Navigation */
+  .slider-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: var(--spacing-2);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    z-index: 10;
+    box-shadow: var(--shadow-md);
+  }
+
+  .slider-nav:hover {
+    background: var(--color-background-secondary);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .slider-nav:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .slider-prev {
+    left: 0;
+  }
+
+  .slider-next {
+    right: 0;
+  }
+
+  /* Dots */
+  .slider-dots {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-6);
+  }
+
+  .slider-dot {
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background: var(--color-border);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .slider-dot:hover {
+    background: var(--color-border-hover);
+  }
+
+  .slider-dot.active {
+    background: var(--color-primary);
+    width: 24px;
+  }
+
+  .slider-dot:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+</style>
+
+<script define:vars={{ sliderId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const slider = document.querySelector(`[data-slider="${sliderId}"]`);
+    if (!slider) return;
+
+    const track = slider.querySelector('.testimonials-slider-track');
+    const slides = slider.querySelectorAll('.testimonial-slide');
+    const dots = slider.querySelectorAll('.slider-dot');
+    const prevBtn = slider.querySelector('.slider-prev');
+    const nextBtn = slider.querySelector('.slider-next');
+
+    if (slides.length === 0) return;
+
+    let currentIndex = 0;
+    let slidesPerView = 1;
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    function getSlidesPerView() {
+      if (window.innerWidth >= 1024) return 3;
+      if (window.innerWidth >= 768) return 2;
+      return 1;
+    }
+
+    function updateSlidesPerView() {
+      slidesPerView = getSlidesPerView();
+    }
+
+    function getMaxIndex() {
+      return Math.max(0, slides.length - slidesPerView);
+    }
+
+    function goToSlide(index) {
+      currentIndex = Math.min(Math.max(0, index), getMaxIndex());
+      const slideWidth = 100 / slidesPerView;
+      track.style.transform = `translateX(-${currentIndex * slideWidth}%)`;
+      updateDots();
+    }
+
+    function updateDots() {
+      dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === currentIndex);
+      });
+    }
+
+    function showPrev() {
+      goToSlide(currentIndex - 1);
+    }
+
+    function showNext() {
+      goToSlide(currentIndex + 1);
+    }
+
+    // Event listeners
+    prevBtn?.addEventListener('click', showPrev);
+    nextBtn?.addEventListener('click', showNext);
+
+    dots.forEach((dot, index) => {
+      dot.addEventListener('click', () => goToSlide(index));
+    });
+
+    // Touch swipe
+    slider.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+
+    slider.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      const diff = touchStartX - touchEndX;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) showNext();
+        else showPrev();
+      }
+    });
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      updateSlidesPerView();
+      goToSlide(currentIndex);
+    });
+
+    // Initialize
+    updateSlidesPerView();
+    goToSlide(0);
+  });
+</script>

@@ -1,0 +1,286 @@
+---
+/**
+ * FAQ Section - вопросы-ответы (аккордеон)
+ *
+ * Features:
+ * - Аккордеон с плавной анимацией
+ * - Keyboard navigation (Enter, Space, Arrow keys)
+ * - ARIA accessibility
+ * - Schema.org FAQPage structured data
+ * - Опциональный заголовок и подзаголовок
+ */
+
+import type { FAQSection } from '../../lib/parser';
+
+interface Props extends Omit<FAQSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  subtitle,
+  items,
+} = Astro.props;
+
+const faqId = id || `faq-${Math.random().toString(36).substr(2, 9)}`;
+
+// Generate structured data for SEO
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": items.map(item => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
+};
+---
+
+<section
+  id={id}
+  class:list={['faq section', className]}
+>
+  <div class="container">
+    {(title || subtitle) && (
+      <div class="faq-header">
+        {title && <h2 class="faq-title">{title}</h2>}
+        {subtitle && <p class="faq-subtitle">{subtitle}</p>}
+      </div>
+    )}
+
+    <div class="faq-list" data-faq={faqId}>
+      {items.map((item, index) => (
+        <div class="faq-item" data-index={index}>
+          <button
+            type="button"
+            class="faq-question"
+            id={`${faqId}-question-${index}`}
+            aria-expanded="false"
+            aria-controls={`${faqId}-answer-${index}`}
+          >
+            <span class="faq-question-text">{item.question}</span>
+            <span class="faq-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </span>
+          </button>
+          <div
+            class="faq-answer"
+            id={`${faqId}-answer-${index}`}
+            role="region"
+            aria-labelledby={`${faqId}-question-${index}`}
+            hidden
+          >
+            <div class="faq-answer-content">
+              <p>{item.answer}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <!-- Structured data for SEO -->
+  <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+</section>
+
+<style>
+  .faq-header {
+    text-align: center;
+    margin-bottom: var(--spacing-12);
+  }
+
+  .faq-title {
+    margin: 0 0 var(--spacing-4);
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    color: var(--color-text);
+  }
+
+  .faq-subtitle {
+    margin: 0;
+    font-size: var(--font-font-size-lg);
+    color: var(--color-text-secondary);
+    max-width: 600px;
+    margin-inline: auto;
+  }
+
+  .faq-list {
+    max-width: 800px;
+    margin-inline: auto;
+  }
+
+  .faq-item {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .faq-item:first-child {
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Question button */
+  .faq-question {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    padding: var(--spacing-5) 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    color: var(--color-text);
+    font-size: var(--font-font-size-lg);
+    font-weight: var(--font-font-weight-medium);
+    line-height: var(--font-line-height-normal);
+    transition: color var(--transition-fast);
+  }
+
+  .faq-question:hover {
+    color: var(--color-primary);
+  }
+
+  .faq-question:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .faq-question-text {
+    flex: 1;
+  }
+
+  .faq-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--transition-normal);
+  }
+
+  .faq-item.open .faq-icon {
+    transform: rotate(180deg);
+  }
+
+  /* Answer */
+  .faq-answer {
+    overflow: hidden;
+    transition: height var(--transition-normal);
+  }
+
+  .faq-answer[hidden] {
+    display: block;
+    height: 0;
+  }
+
+  .faq-answer-content {
+    padding-bottom: var(--spacing-5);
+    color: var(--color-text-secondary);
+    line-height: var(--font-line-height-relaxed);
+  }
+
+  .faq-answer-content p {
+    margin: 0;
+  }
+
+  .faq-answer-content p + p {
+    margin-top: var(--spacing-4);
+  }
+
+  /* Animation */
+  .faq-item.open .faq-question {
+    color: var(--color-primary);
+  }
+</style>
+
+<script define:vars={{ faqId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const faqList = document.querySelector(`[data-faq="${faqId}"]`);
+    if (!faqList) return;
+
+    const items = faqList.querySelectorAll('.faq-item');
+    const questions = faqList.querySelectorAll('.faq-question');
+
+    function toggleItem(item, forceOpen = null) {
+      const question = item.querySelector('.faq-question');
+      const answer = item.querySelector('.faq-answer');
+      const isOpen = item.classList.contains('open');
+      const shouldOpen = forceOpen !== null ? forceOpen : !isOpen;
+
+      if (shouldOpen) {
+        // Close others (accordion behavior)
+        items.forEach(otherItem => {
+          if (otherItem !== item && otherItem.classList.contains('open')) {
+            closeItem(otherItem);
+          }
+        });
+
+        // Open this item
+        item.classList.add('open');
+        question.setAttribute('aria-expanded', 'true');
+        answer.hidden = false;
+
+        // Animate height
+        const contentHeight = answer.querySelector('.faq-answer-content').offsetHeight;
+        answer.style.height = contentHeight + 'px';
+      } else {
+        closeItem(item);
+      }
+    }
+
+    function closeItem(item) {
+      const question = item.querySelector('.faq-question');
+      const answer = item.querySelector('.faq-answer');
+
+      item.classList.remove('open');
+      question.setAttribute('aria-expanded', 'false');
+      answer.style.height = '0';
+
+      // Wait for animation then hide
+      setTimeout(() => {
+        if (!item.classList.contains('open')) {
+          answer.hidden = true;
+        }
+      }, 300);
+    }
+
+    // Click handlers
+    questions.forEach((question, index) => {
+      question.addEventListener('click', () => {
+        toggleItem(items[index]);
+      });
+    });
+
+    // Keyboard navigation
+    questions.forEach((question, index) => {
+      question.addEventListener('keydown', (e) => {
+        switch (e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            const nextIndex = (index + 1) % questions.length;
+            questions[nextIndex].focus();
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            const prevIndex = (index - 1 + questions.length) % questions.length;
+            questions[prevIndex].focus();
+            break;
+          case 'Home':
+            e.preventDefault();
+            questions[0].focus();
+            break;
+          case 'End':
+            e.preventDefault();
+            questions[questions.length - 1].focus();
+            break;
+        }
+      });
+    });
+  });
+</script>

@@ -1,0 +1,248 @@
+---
+/**
+ * CompareTable Section - сравнительная таблица
+ *
+ * Features:
+ * - Адаптивная таблица с горизонтальным скроллом
+ * - Поддержка boolean (чекмарки/крестики) и текстовых значений
+ * - Sticky первая колонка на мобильных
+ * - Zebra striping
+ * - Hover эффекты
+ */
+
+import type { CompareTableSection } from '../../lib/parser';
+
+interface Props extends Omit<CompareTableSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  headers,
+  rows,
+} = Astro.props;
+---
+
+<section
+  id={id}
+  class:list={['compare-table section', className]}
+>
+  <div class="container">
+    {title && (
+      <h2 class="compare-table-title">{title}</h2>
+    )}
+
+    <div class="compare-table-wrapper">
+      <table class="compare-table-table">
+        <thead>
+          <tr>
+            <th class="compare-table-feature-header">Функция</th>
+            {headers.map((header) => (
+              <th class="compare-table-header">{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr>
+              <td class="compare-table-feature">{row.feature}</td>
+              {row.values.map((value) => (
+                <td class="compare-table-value">
+                  {typeof value === 'boolean' ? (
+                    value ? (
+                      <span class="compare-table-check" aria-label="Да">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      </span>
+                    ) : (
+                      <span class="compare-table-cross" aria-label="Нет">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                      </span>
+                    )
+                  ) : (
+                    <span class="compare-table-text">{value}</span>
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<style>
+  .compare-table-title {
+    margin: 0 0 var(--spacing-8);
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    text-align: center;
+    color: var(--color-text);
+  }
+
+  .compare-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--color-border);
+  }
+
+  .compare-table-table {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: collapse;
+    background: var(--color-background);
+  }
+
+  /* Header */
+  .compare-table-table thead {
+    background: var(--color-background-secondary);
+  }
+
+  .compare-table-table th {
+    padding: var(--spacing-4) var(--spacing-5);
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-semibold);
+    text-align: center;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .compare-table-feature-header {
+    text-align: left !important;
+    min-width: 200px;
+  }
+
+  /* Body */
+  .compare-table-table tbody tr {
+    transition: background var(--transition-fast);
+  }
+
+  .compare-table-table tbody tr:hover {
+    background: var(--color-background-secondary);
+  }
+
+  .compare-table-table tbody tr:nth-child(even) {
+    background: rgba(var(--color-background-secondary-rgb), 0.5);
+  }
+
+  .compare-table-table tbody tr:nth-child(even):hover {
+    background: var(--color-background-secondary);
+  }
+
+  .compare-table-table td {
+    padding: var(--spacing-4) var(--spacing-5);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .compare-table-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* Feature column */
+  .compare-table-feature {
+    font-weight: var(--font-font-weight-medium);
+    color: var(--color-text);
+    text-align: left;
+  }
+
+  /* Value columns */
+  .compare-table-value {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .compare-table-check {
+    display: inline-flex;
+    color: var(--color-success);
+  }
+
+  .compare-table-cross {
+    display: inline-flex;
+    color: var(--color-text-muted);
+  }
+
+  .compare-table-text {
+    color: var(--color-text-secondary);
+    font-size: var(--font-font-size-sm);
+  }
+
+  /* Sticky first column on mobile */
+  @media (max-width: 767px) {
+    .compare-table-feature-header,
+    .compare-table-feature {
+      position: sticky;
+      left: 0;
+      background: var(--color-background);
+      z-index: 1;
+    }
+
+    .compare-table-table tbody tr:nth-child(even) .compare-table-feature {
+      background: rgba(var(--color-background-secondary-rgb), 0.5);
+    }
+
+    .compare-table-table tbody tr:hover .compare-table-feature {
+      background: var(--color-background-secondary);
+    }
+
+    .compare-table-feature-header {
+      background: var(--color-background-secondary);
+    }
+
+    .compare-table-feature-header::after,
+    .compare-table-feature::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--color-border);
+    }
+  }
+
+  /* Scroll indicator */
+  .compare-table-wrapper {
+    position: relative;
+  }
+
+  @media (max-width: 767px) {
+    .compare-table-wrapper::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 40px;
+      background: linear-gradient(to right, transparent, var(--color-background));
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity var(--transition-fast);
+    }
+
+    .compare-table-wrapper.scrolled-end::after {
+      opacity: 0;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const wrappers = document.querySelectorAll('.compare-table-wrapper');
+
+    wrappers.forEach(wrapper => {
+      const checkScroll = () => {
+        const { scrollLeft, scrollWidth, clientWidth } = wrapper;
+        const isAtEnd = scrollLeft + clientWidth >= scrollWidth - 10;
+        wrapper.classList.toggle('scrolled-end', isAtEnd);
+      };
+
+      wrapper.addEventListener('scroll', checkScroll);
+      checkScroll();
+    });
+  });
+</script>

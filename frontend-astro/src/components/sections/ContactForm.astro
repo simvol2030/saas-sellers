@@ -1,0 +1,469 @@
+---
+/**
+ * ContactForm Section - форма обратной связи
+ *
+ * Features:
+ * - Динамические поля из конфига
+ * - Client-side валидация
+ * - CSRF protection placeholder
+ * - Success/error состояния
+ * - Адаптивный layout
+ * - Accessible form controls
+ */
+
+import type { ContactFormSection } from '../../lib/parser';
+
+interface Props extends Omit<ContactFormSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  description,
+  submitText = 'Отправить',
+  successMessage = 'Спасибо! Ваше сообщение отправлено.',
+  fields = [
+    { name: 'name', type: 'text', label: 'Имя', placeholder: 'Ваше имя', required: true },
+    { name: 'email', type: 'email', label: 'Email', placeholder: 'your@email.com', required: true },
+    { name: 'message', type: 'textarea', label: 'Сообщение', placeholder: 'Ваше сообщение...', required: true },
+  ],
+} = Astro.props;
+
+const formId = id || `form-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<section
+  id={id}
+  class:list={['contact-form section', className]}
+>
+  <div class="container">
+    <div class="contact-form-wrapper">
+      {(title || description) && (
+        <div class="contact-form-header">
+          {title && <h2 class="contact-form-title">{title}</h2>}
+          {description && <p class="contact-form-description">{description}</p>}
+        </div>
+      )}
+
+      <form
+        class="contact-form-form"
+        id={formId}
+        data-form={formId}
+        novalidate
+      >
+        <div class="contact-form-fields">
+          {fields.map((field) => (
+            <div class:list={['contact-form-field', `field-${field.type}`]}>
+              <label
+                class="contact-form-label"
+                for={`${formId}-${field.name}`}
+              >
+                {field.label}
+                {field.required && <span class="required-indicator" aria-hidden="true">*</span>}
+              </label>
+
+              {field.type === 'textarea' ? (
+                <textarea
+                  class="contact-form-input contact-form-textarea"
+                  id={`${formId}-${field.name}`}
+                  name={field.name}
+                  placeholder={field.placeholder}
+                  required={field.required}
+                  rows="5"
+                  aria-describedby={`${formId}-${field.name}-error`}
+                />
+              ) : field.type === 'select' && field.options ? (
+                <select
+                  class="contact-form-input contact-form-select"
+                  id={`${formId}-${field.name}`}
+                  name={field.name}
+                  required={field.required}
+                  aria-describedby={`${formId}-${field.name}-error`}
+                >
+                  <option value="">{field.placeholder || 'Выберите...'}</option>
+                  {field.options.map((option) => (
+                    <option value={option}>{option}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  class="contact-form-input"
+                  type={field.type}
+                  id={`${formId}-${field.name}`}
+                  name={field.name}
+                  placeholder={field.placeholder}
+                  required={field.required}
+                  aria-describedby={`${formId}-${field.name}-error`}
+                />
+              )}
+
+              <span
+                class="contact-form-error"
+                id={`${formId}-${field.name}-error`}
+                role="alert"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div class="contact-form-actions">
+          <button type="submit" class="contact-form-submit">
+            <span class="submit-text">{submitText}</span>
+            <span class="submit-loading" aria-hidden="true">
+              <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" opacity="0.25"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"/>
+              </svg>
+            </span>
+          </button>
+        </div>
+
+        <!-- Success message -->
+        <div class="contact-form-success" hidden>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <p>{successMessage}</p>
+        </div>
+
+        <!-- Error message -->
+        <div class="contact-form-error-message" hidden>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="m15 9-6 6M9 9l6 6"/>
+          </svg>
+          <p>Произошла ошибка. Пожалуйста, попробуйте позже.</p>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<style>
+  .contact-form-wrapper {
+    max-width: 600px;
+    margin-inline: auto;
+    background: var(--color-background);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-8);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--color-border);
+  }
+
+  .contact-form-header {
+    text-align: center;
+    margin-bottom: var(--spacing-8);
+  }
+
+  .contact-form-title {
+    margin: 0 0 var(--spacing-3);
+    font-size: var(--font-font-size-2xl);
+    font-weight: var(--font-font-weight-bold);
+    color: var(--color-text);
+  }
+
+  .contact-form-description {
+    margin: 0;
+    color: var(--color-text-secondary);
+  }
+
+  /* Fields */
+  .contact-form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-5);
+  }
+
+  .contact-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .contact-form-label {
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-medium);
+    color: var(--color-text);
+  }
+
+  .required-indicator {
+    color: var(--color-error);
+    margin-left: var(--spacing-1);
+  }
+
+  .contact-form-input {
+    width: 100%;
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--font-font-size-base);
+    color: var(--color-text);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .contact-form-input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .contact-form-input:hover {
+    border-color: var(--color-border-hover);
+  }
+
+  .contact-form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
+  }
+
+  .contact-form-input:invalid:not(:placeholder-shown) {
+    border-color: var(--color-error);
+  }
+
+  .contact-form-input.error {
+    border-color: var(--color-error);
+  }
+
+  .contact-form-textarea {
+    resize: vertical;
+    min-height: 120px;
+  }
+
+  .contact-form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-3) center;
+    padding-right: var(--spacing-10);
+  }
+
+  .contact-form-error {
+    font-size: var(--font-font-size-sm);
+    color: var(--color-error);
+    min-height: 1.25em;
+  }
+
+  /* Actions */
+  .contact-form-actions {
+    margin-top: var(--spacing-6);
+  }
+
+  .contact-form-submit {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-4) var(--spacing-6);
+    font-size: var(--font-font-size-base);
+    font-weight: var(--font-font-weight-semibold);
+    color: white;
+    background: var(--color-primary);
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: background var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .contact-form-submit:hover:not(:disabled) {
+    background: var(--color-primary-dark);
+  }
+
+  .contact-form-submit:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .contact-form-submit:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .contact-form-submit:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .submit-loading {
+    display: none;
+  }
+
+  .contact-form-form.loading .submit-text {
+    display: none;
+  }
+
+  .contact-form-form.loading .submit-loading {
+    display: flex;
+  }
+
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Success/Error messages */
+  .contact-form-success,
+  .contact-form-error-message {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    margin-top: var(--spacing-6);
+    border-radius: var(--radius-lg);
+  }
+
+  .contact-form-success[hidden],
+  .contact-form-error-message[hidden] {
+    display: none;
+  }
+
+  .contact-form-success {
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+  }
+
+  .contact-form-error-message {
+    background: var(--color-error-light);
+    color: var(--color-error-dark);
+  }
+
+  .contact-form-success p,
+  .contact-form-error-message p {
+    margin: 0;
+  }
+
+  /* Hide form when success */
+  .contact-form-form.success .contact-form-fields,
+  .contact-form-form.success .contact-form-actions {
+    display: none;
+  }
+</style>
+
+<script define:vars={{ formId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector(`[data-form="${formId}"]`);
+    if (!form) return;
+
+    const submitBtn = form.querySelector('.contact-form-submit');
+    const successMessage = form.querySelector('.contact-form-success');
+    const errorMessage = form.querySelector('.contact-form-error-message');
+
+    // Validation messages
+    const validationMessages = {
+      valueMissing: 'Это поле обязательно для заполнения',
+      typeMismatch: 'Пожалуйста, введите корректное значение',
+      tooShort: 'Значение слишком короткое',
+      tooLong: 'Значение слишком длинное',
+      patternMismatch: 'Пожалуйста, введите корректное значение',
+    };
+
+    function showError(input, message) {
+      const errorEl = document.getElementById(`${input.id}-error`);
+      if (errorEl) {
+        errorEl.textContent = message;
+      }
+      input.classList.add('error');
+    }
+
+    function clearError(input) {
+      const errorEl = document.getElementById(`${input.id}-error`);
+      if (errorEl) {
+        errorEl.textContent = '';
+      }
+      input.classList.remove('error');
+    }
+
+    function validateInput(input) {
+      clearError(input);
+
+      if (!input.validity.valid) {
+        let message = validationMessages.valueMissing;
+
+        if (input.validity.typeMismatch) {
+          if (input.type === 'email') {
+            message = 'Пожалуйста, введите корректный email';
+          } else if (input.type === 'tel') {
+            message = 'Пожалуйста, введите корректный номер телефона';
+          } else {
+            message = validationMessages.typeMismatch;
+          }
+        } else if (input.validity.tooShort) {
+          message = validationMessages.tooShort;
+        } else if (input.validity.tooLong) {
+          message = validationMessages.tooLong;
+        }
+
+        showError(input, message);
+        return false;
+      }
+
+      return true;
+    }
+
+    // Validate on blur
+    const inputs = form.querySelectorAll('.contact-form-input');
+    inputs.forEach(input => {
+      input.addEventListener('blur', () => validateInput(input));
+      input.addEventListener('input', () => {
+        if (input.classList.contains('error')) {
+          validateInput(input);
+        }
+      });
+    });
+
+    // Form submit
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Validate all fields
+      let isValid = true;
+      inputs.forEach(input => {
+        if (!validateInput(input)) {
+          isValid = false;
+        }
+      });
+
+      if (!isValid) {
+        // Focus first error
+        const firstError = form.querySelector('.contact-form-input.error');
+        if (firstError) firstError.focus();
+        return;
+      }
+
+      // Show loading
+      form.classList.add('loading');
+      submitBtn.disabled = true;
+      errorMessage.hidden = true;
+
+      try {
+        // Collect form data
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData);
+
+        // Submit to API (placeholder - implement your endpoint)
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) throw new Error('Submit failed');
+
+        // Show success
+        form.classList.remove('loading');
+        form.classList.add('success');
+        successMessage.hidden = false;
+
+      } catch (error) {
+        // Show error
+        form.classList.remove('loading');
+        submitBtn.disabled = false;
+        errorMessage.hidden = false;
+      }
+    });
+  });
+</script>

@@ -89,14 +89,14 @@ data/media/
 
 ---
 
-### ФАЗА 4: Конверсионные секции
+### ФАЗА 4: Конверсионные секции ✅
 
 **Компоненты:**
-- [ ] **FAQ** — вопросы-ответы (аккордеон)
-- [ ] **ContactForm** — форма обратной связи
-- [ ] **Pricing** — таблица тарифов
-- [ ] **CompareTable** — сравнительная таблица
-- [ ] **Testimonials** — отзывы (карточки/слайдер)
+- [x] **FAQ** — вопросы-ответы (аккордеон)
+- [x] **ContactForm** — форма обратной связи
+- [x] **Pricing** — таблица тарифов
+- [x] **CompareTable** — сравнительная таблица
+- [x] **Testimonials** — отзывы (карточки/слайдер)
 
 **Результат:** Элементы для конверсии
 
@@ -230,8 +230,8 @@ frontend-astro/
 
 ## Текущий статус
 
-**Активная фаза:** ФАЗА 3 (завершена) -> ФАЗА 4
-**Прогресс:** ~45% (Фазы 1-3 завершены)
+**Активная фаза:** ФАЗА 4 (завершена) -> ФАЗА 5
+**Прогресс:** ~60% (Фазы 1-4 завершены)
 
 ### Что сделано:
 
@@ -260,6 +260,13 @@ frontend-astro/
 - `VideoYouTube.astro` - privacy-enhanced embed, lazy loading
 - `VideoLocal.astro` - autoplay on scroll, sound toggle, progress
 - `MediaMix.astro` - Instagram-style grid с expand modal
+
+**Фаза 4 (Конверсионные секции):**
+- `FAQ.astro` - аккордеон с ARIA, keyboard nav, Schema.org
+- `ContactForm.astro` - динамические поля, валидация, состояния
+- `Pricing.astro` - карточки тарифов, highlighted план
+- `CompareTable.astro` - адаптивная таблица, sticky колонка
+- `Testimonials.astro` - grid/slider layouts, рейтинг звёздами
 
 ---
 

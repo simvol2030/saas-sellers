@@ -27,6 +27,13 @@ import VideoYouTube from '../components/sections/VideoYouTube.astro';
 import VideoLocal from '../components/sections/VideoLocal.astro';
 import MediaMix from '../components/sections/MediaMix.astro';
 
+// Phase 4 conversion section components
+import FAQ from '../components/sections/FAQ.astro';
+import ContactForm from '../components/sections/ContactForm.astro';
+import Pricing from '../components/sections/Pricing.astro';
+import CompareTable from '../components/sections/CompareTable.astro';
+import Testimonials from '../components/sections/Testimonials.astro';
+
 interface Props {
   data: LandingPageData;
   headerConfig?: HeaderConfig;
@@ -67,6 +74,12 @@ const sectionComponents: Record<string, any> = {
   videoYouTube: VideoYouTube,
   videoLocal: VideoLocal,
   mediaMix: MediaMix,
+  // Phase 4
+  faq: FAQ,
+  contactForm: ContactForm,
+  pricing: Pricing,
+  compareTable: CompareTable,
+  testimonials: Testimonials,
 };
 ---
 
