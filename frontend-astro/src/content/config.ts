@@ -94,10 +94,56 @@ const authorsCollection = defineCollection({
 });
 
 // ==========================================
+// LANDINGS COLLECTION (Landing Builder pages)
+// ==========================================
+const sectionSchema = z.object({
+  type: z.string(),
+  id: z.string().optional(),
+  className: z.string().optional(),
+  hidden: z.boolean().optional(),
+}).passthrough(); // Allow additional fields based on section type
+
+const landingsCollection = defineCollection({
+  type: 'content',
+  schema: z.object({
+    // Page metadata
+    title: z.string(),
+    description: z.string().optional(),
+
+    // SEO
+    metaTitle: z.string().optional(),
+    metaDescription: z.string().optional(),
+    image: z.string().optional(),
+    canonicalUrl: z.string().optional(),
+    noindex: z.boolean().default(false),
+
+    // Layout options
+    hideHeader: z.boolean().default(false),
+    hideFooter: z.boolean().default(false),
+
+    // Header/Footer config (JSON objects)
+    headerConfig: z.record(z.unknown()).optional(),
+    footerConfig: z.record(z.unknown()).optional(),
+
+    // Sections array - the core of Landing Builder
+    sections: z.array(sectionSchema).default([]),
+
+    // Publishing
+    status: z.enum(['draft', 'published']).default('draft'),
+    publishedAt: z.coerce.date().optional(),
+    updatedAt: z.coerce.date().optional(),
+
+    // Build options
+    prerender: z.boolean().default(true), // SSG by default
+  }),
+});
+
+// ==========================================
 // EXPORT
 // ==========================================
 export const collections = {
   blog: blogCollection,
   pages: pagesCollection,
   authors: authorsCollection,
+  landings: landingsCollection,
 };

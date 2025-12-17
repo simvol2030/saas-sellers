@@ -1,0 +1,205 @@
+---
+/**
+ * Landing Layout - шаблон для лендингов
+ *
+ * Отвечает за:
+ * - Динамический рендеринг секций
+ * - Конфигурируемые Header и Footer
+ * - SEO для лендингов
+ * - Полноэкранный контент (без контейнера)
+ */
+import Base from './Base.astro';
+import type { LandingPageData, Section } from '../lib/parser';
+import type { HeaderConfig } from '../components/Header.astro';
+import type { FooterConfig } from '../components/Footer.astro';
+
+// Import section components
+// Phase 2 sections will be imported here as they're created
+// import Hero from '../components/sections/Hero.astro';
+// import HeroMin from '../components/sections/HeroMin.astro';
+// etc.
+
+interface Props {
+  data: LandingPageData;
+  headerConfig?: HeaderConfig;
+  footerConfig?: FooterConfig;
+}
+
+const { data, headerConfig, footerConfig } = Astro.props;
+
+const {
+  title,
+  description,
+  image,
+  canonicalUrl,
+  noindex,
+  hideHeader,
+  hideFooter,
+  sections,
+} = data;
+
+// Merge header/footer configs from props and data
+const finalHeaderConfig = { ...data.headerConfig, ...headerConfig } as HeaderConfig | undefined;
+const finalFooterConfig = { ...data.footerConfig, ...footerConfig } as FooterConfig | undefined;
+
+// Filter visible sections
+const visibleSections = sections.filter(section => !section.hidden);
+
+/**
+ * Render a section based on its type
+ * TODO: Import actual section components as they're created
+ */
+function renderSectionPlaceholder(section: Section, index: number) {
+  return `
+    <section
+      id="${section.id || `section-${index}`}"
+      class="landing-section section-${section.type} ${section.className || ''}"
+      data-section-type="${section.type}"
+    >
+      <div class="container">
+        <div class="section-placeholder">
+          <span class="section-type-badge">${section.type}</span>
+          <p>Section component: ${section.type}</p>
+          ${('title' in section && section.title) ? `<h2>${section.title}</h2>` : ''}
+        </div>
+      </div>
+    </section>
+  `;
+}
+---
+
+<Base
+  title={title}
+  description={description}
+  image={image}
+  canonicalUrl={canonicalUrl}
+  noindex={noindex}
+  hideHeader={hideHeader}
+  hideFooter={hideFooter}
+  fullWidth={true}
+>
+  <div class="landing-page">
+    {visibleSections.map((section, index) => {
+      const sectionId = section.id || `section-${index}`;
+
+      // For now, render placeholder until actual components are created
+      // Once section components exist, use dynamic rendering:
+      // return <SectionRenderer section={section} />
+
+      return (
+        <section
+          id={sectionId}
+          class:list={[
+            'landing-section',
+            `section-${section.type}`,
+            section.className,
+          ]}
+          data-section-type={section.type}
+          data-section-index={index}
+        >
+          <div class="section-placeholder">
+            <div class="container">
+              <span class="section-type-badge">{section.type}</span>
+              <p class="section-placeholder-text">
+                Компонент секции: <strong>{section.type}</strong>
+              </p>
+              {'title' in section && section.title && (
+                <h2 class="section-placeholder-title">{section.title}</h2>
+              )}
+              <p class="section-placeholder-hint">
+                Этот плейсхолдер будет заменён реальным компонентом в Фазе 2
+              </p>
+            </div>
+          </div>
+        </section>
+      )
+    })}
+  </div>
+</Base>
+
+<style>
+  .landing-page {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .landing-section {
+    width: 100%;
+  }
+
+  /* Placeholder styles for development */
+  .section-placeholder {
+    padding: var(--spacing-section-padding-y-mobile) 0;
+    background: var(--color-background-secondary);
+    border-bottom: 1px dashed var(--color-border);
+    text-align: center;
+  }
+
+  @media (min-width: 768px) {
+    .section-placeholder {
+      padding: var(--spacing-section-padding-y) 0;
+    }
+  }
+
+  .section-type-badge {
+    display: inline-block;
+    padding: var(--spacing-1) var(--spacing-3);
+    font-size: var(--font-font-size-xs);
+    font-weight: var(--font-font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--font-letter-spacing-wide);
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+    border-radius: var(--radius-full);
+    margin-bottom: var(--spacing-4);
+  }
+
+  .section-placeholder-text {
+    color: var(--color-text-secondary);
+    font-size: var(--font-font-size-sm);
+    margin-bottom: var(--spacing-2);
+  }
+
+  .section-placeholder-title {
+    color: var(--color-text);
+    font-size: var(--font-font-size-2xl);
+    margin-bottom: var(--spacing-4);
+  }
+
+  .section-placeholder-hint {
+    color: var(--color-text-muted);
+    font-size: var(--font-font-size-xs);
+    font-style: italic;
+  }
+
+  /* Section-specific styling hints */
+  .section-hero .section-placeholder {
+    background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-info-light) 100%);
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+  }
+
+  .section-heroMin .section-placeholder {
+    background: var(--color-background-tertiary);
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+  }
+
+  .section-cta .section-placeholder {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+  }
+
+  .section-cta .section-type-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--color-text-inverse);
+  }
+
+  .section-cta .section-placeholder-text,
+  .section-cta .section-placeholder-title,
+  .section-cta .section-placeholder-hint {
+    color: var(--color-text-inverse);
+  }
+</style>

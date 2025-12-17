@@ -1,12 +1,12 @@
 ---
 /**
  * Base Layout - основной шаблон для всех страниц
- * Включает: SEO, Header, Footer, основную структуру
+ * Включает: SEO, Header, Footer, Theme System, основную структуру
  */
 import SEO from '../components/SEO.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import '../styles/global.css';
+import '../styles/theme.css';
 
 interface Props {
   title: string;
@@ -15,6 +15,12 @@ interface Props {
   canonicalUrl?: string;
   noindex?: boolean;
   class?: string;
+  /** Скрыть Header */
+  hideHeader?: boolean;
+  /** Скрыть Footer */
+  hideFooter?: boolean;
+  /** Отключить контейнер для контента */
+  fullWidth?: boolean;
 }
 
 const {
@@ -24,6 +30,9 @@ const {
   canonicalUrl,
   noindex = false,
   class: className = '',
+  hideHeader = false,
+  hideFooter = false,
+  fullWidth = false,
 } = Astro.props;
 
 const siteTitle = 'Content Platform';
@@ -49,19 +58,32 @@ const fullTitle = title === siteTitle ? title : `${title} | ${siteTitle}`;
     <!-- Preload critical fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- Theme initialization (prevent flash) -->
+    <script is:inline>
+      (function() {
+        const stored = localStorage.getItem('theme');
+        if (stored === 'dark' || stored === 'light') {
+          document.documentElement.setAttribute('data-theme', stored);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
 
     <slot name="head" />
   </head>
 
   <body>
     <div class="site-wrapper">
-      <Header />
+      {!hideHeader && <Header />}
 
-      <main class={`main-content ${className}`}>
+      <main class:list={['main-content', className, { 'full-width': fullWidth }]}>
         <slot />
       </main>
 
-      <Footer />
+      {!hideFooter && <Footer />}
     </div>
 
     <slot name="footer-scripts" />
@@ -69,28 +91,24 @@ const fullTitle = title === siteTitle ? title : `${title} | ${siteTitle}`;
 </html>
 
 <style is:global>
-  /* CSS Reset */
-  *, *::before, *::after {
-    box-sizing: border-box;
+  /* Layout */
+  .site-wrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
-  * {
-    margin: 0;
+  .main-content {
+    flex: 1;
+    width: 100%;
   }
 
-  html {
-    scroll-behavior: smooth;
+  .main-content.full-width {
+    max-width: none;
+    padding: 0;
   }
 
-  body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    line-height: 1.6;
-    color: var(--color-text);
-    background-color: var(--color-bg);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
+  /* Media elements */
   img, picture, video, canvas, svg {
     display: block;
     max-width: 100%;
@@ -104,87 +122,21 @@ const fullTitle = title === siteTitle ? title : `${title} | ${siteTitle}`;
     overflow-wrap: break-word;
   }
 
-  a {
-    color: var(--color-primary);
-    text-decoration: none;
+  /* Skip to content for accessibility */
+  .skip-to-content {
+    position: absolute;
+    top: -100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-radius: var(--radius-md);
+    z-index: calc(var(--z-fixed) + 1);
+    transition: top var(--transition-fast);
   }
 
-  a:hover {
-    text-decoration: underline;
-  }
-
-  /* CSS Variables */
-  :root {
-    /* Colors */
-    --color-primary: #3b82f6;
-    --color-primary-dark: #2563eb;
-    --color-secondary: #64748b;
-    --color-accent: #f59e0b;
-    --color-success: #22c55e;
-    --color-error: #ef4444;
-
-    --color-text: #1f2937;
-    --color-text-muted: #6b7280;
-    --color-bg: #ffffff;
-    --color-bg-secondary: #f9fafb;
-    --color-border: #e5e7eb;
-
-    /* Spacing */
-    --space-1: 0.25rem;
-    --space-2: 0.5rem;
-    --space-3: 0.75rem;
-    --space-4: 1rem;
-    --space-6: 1.5rem;
-    --space-8: 2rem;
-    --space-12: 3rem;
-    --space-16: 4rem;
-
-    /* Container */
-    --container-max: 1200px;
-    --container-narrow: 800px;
-
-    /* Border Radius */
-    --radius-sm: 0.25rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 1rem;
-
-    /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  }
-
-  /* Dark mode support */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --color-text: #f3f4f6;
-      --color-text-muted: #9ca3af;
-      --color-bg: #111827;
-      --color-bg-secondary: #1f2937;
-      --color-border: #374151;
-    }
-  }
-
-  /* Layout */
-  .site-wrapper {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .main-content {
-    flex: 1;
-    width: 100%;
-  }
-
-  .container {
-    width: 100%;
-    max-width: var(--container-max);
-    margin: 0 auto;
-    padding: 0 var(--space-4);
-  }
-
-  .container-narrow {
-    max-width: var(--container-narrow);
+  .skip-to-content:focus {
+    top: var(--spacing-2);
   }
 </style>

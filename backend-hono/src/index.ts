@@ -9,6 +9,7 @@ import users from './routes/users';
 import posts from './routes/posts';
 import categories from './routes/categories';
 import tags from './routes/tags';
+import media from './routes/media';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './lib/db';
 
@@ -68,6 +69,7 @@ app.route('/api/users', users);
 app.route('/api/posts', posts);
 app.route('/api/categories', categories);
 app.route('/api/tags', tags);
+app.route('/api/media', media);
 
 // Error handling
 app.onError(errorHandler);
