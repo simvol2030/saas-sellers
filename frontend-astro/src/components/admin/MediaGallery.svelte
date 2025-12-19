@@ -6,6 +6,7 @@
    */
 
   import { onMount } from 'svelte';
+  import { apiFetch } from '../../lib/api';
 
   interface MediaFile {
     name: string;
@@ -36,6 +37,7 @@
   let uploading = $state(false);
   let uploadProgress = $state(0);
   let viewMode = $state<'grid' | 'list'>('grid');
+  let notification = $state<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Computed
   let filteredFiles = $derived(
@@ -44,33 +46,24 @@
       : files.filter(f => f.type === typeFilter)
   );
 
+  // Show notification
+  function showNotification(type: 'success' | 'error', message: string) {
+    notification = { type, message };
+    setTimeout(() => {
+      notification = null;
+    }, 5000);
+  }
+
   // Load files
   async function loadFiles() {
     loading = true;
     error = null;
 
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        window.location.href = '/admin/login';
-        return;
-      }
-
-      const res = await fetch('/api/media', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.status === 401) {
-        window.location.href = '/admin/login';
-        return;
-      }
-
-      if (!res.ok) throw new Error('Failed to load files');
-
-      const data = await res.json();
+      const data = await apiFetch<{ files: MediaFile[] }>('/api/media');
       files = data.files;
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Unknown error';
+      error = e instanceof Error ? e.message : 'Ошибка загрузки файлов';
     } finally {
       loading = false;
     }
@@ -82,12 +75,6 @@
     const fileList = input.files;
     if (!fileList?.length) return;
 
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      window.location.href = '/admin/login';
-      return;
-    }
-
     uploading = true;
     uploadProgress = 0;
     error = null;
@@ -98,16 +85,10 @@
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch('/api/media/upload', {
+        await apiFetch('/api/media/upload', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Upload failed');
-        }
 
         uploadProgress = ((i + 1) / fileList.length) * 100;
       }
@@ -115,8 +96,10 @@
       // Reload files after upload
       await loadFiles();
       showUpload = false;
+      showNotification('success', `Загружено файлов: ${fileList.length}`);
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Upload failed';
+      error = e instanceof Error ? e.message : 'Ошибка загрузки';
+      showNotification('error', 'Не удалось загрузить файлы');
     } finally {
       uploading = false;
       uploadProgress = 0;
@@ -128,32 +111,21 @@
   async function deleteFile(file: MediaFile) {
     if (!confirm(`Удалить файл "${file.name}"?`)) return;
 
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      window.location.href = '/admin/login';
-      return;
-    }
-
     try {
-      const res = await fetch(`/api/media${file.path}`, {
+      await apiFetch(`/api/media${file.path}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (res.status === 401) {
-        window.location.href = '/admin/login';
-        return;
-      }
-
-      if (!res.ok) throw new Error('Failed to delete');
 
       files = files.filter(f => f.name !== file.name);
 
       if (selectedFile?.name === file.name) {
         selectedFile = null;
       }
+
+      showNotification('success', 'Файл удален');
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Delete failed';
+      error = e instanceof Error ? e.message : 'Ошибка удаления';
+      showNotification('error', 'Не удалось удалить файл');
     }
   }
 
@@ -201,6 +173,20 @@
 </script>
 
 <div class="media-gallery">
+  <!-- Notification -->
+  {#if notification}
+    <div class="notification notification-{notification.type}">
+      {notification.message}
+      <button
+        type="button"
+        class="notification-close"
+        onclick={() => notification = null}
+      >
+        ×
+      </button>
+    </div>
+  {/if}
+
   <!-- Toolbar -->
   <div class="toolbar">
     <div class="toolbar-left">
@@ -813,5 +799,63 @@
     height: 100%;
     background: var(--color-primary);
     transition: width 0.3s ease;
+  }
+
+  /* Notification */
+  .notification {
+    position: fixed;
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-medium);
+    box-shadow: var(--shadow-xl);
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .notification-success {
+    background: var(--color-success);
+    color: white;
+  }
+
+  .notification-error {
+    background: var(--color-error);
+    color: white;
+  }
+
+  .notification-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1.5rem;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+
+  .notification-close:hover {
+    background: rgba(255, 255, 255, 0.3);
   }
 </style>
