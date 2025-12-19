@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { authMiddleware, editorOrAdmin } from '../middleware/auth';
+import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
 
 const media = new Hono();
 

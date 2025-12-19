@@ -7,8 +7,8 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { prisma } from '../lib/db';
-import { authMiddleware } from '../middleware/auth';
+import { prisma } from '../lib/db.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const theme = new Hono();
 

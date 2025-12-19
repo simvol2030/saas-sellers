@@ -9,7 +9,7 @@
  */
 
 import { Hono } from 'hono';
-import { prisma } from '../lib/db';
+import { prisma } from '../lib/db.js';
 
 const publicPages = new Hono();
 

@@ -13,14 +13,14 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { prisma } from '../lib/db';
+import { prisma } from '../lib/db.js';
 import {
   generateTokenPair,
   verifyToken,
   generateAccessToken,
   getRefreshTokenExpiry,
-} from '../lib/jwt';
-import { authMiddleware, adminOnly } from '../middleware/auth';
+} from '../lib/jwt.js';
+import { authMiddleware, adminOnly } from '../middleware/auth.js';
 
 const auth = new Hono();
 

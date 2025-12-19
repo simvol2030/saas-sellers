@@ -5,7 +5,7 @@
  */
 
 import { Context, Next } from 'hono';
-import { verifyToken, type TokenPayload } from '../lib/jwt';
+import { verifyToken, type TokenPayload } from '../lib/jwt.js';
 
 export interface AuthUser {
   id: number;
