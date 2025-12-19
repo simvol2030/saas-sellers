@@ -6,6 +6,7 @@
    */
 
   import { onMount } from 'svelte';
+  import { apiFetch } from '../../lib/api';
 
   interface Stats {
     totalPages: number;
@@ -43,52 +44,25 @@
     loading = true;
 
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        window.location.href = '/admin/login';
-        return;
-      }
-
       // Load pages stats
-      const pagesRes = await fetch('/api/admin/pages?limit=5', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const pagesData = await apiFetch<any>('/api/admin/pages?limit=5');
+      stats.totalPages = pagesData.pagination.total;
+      recentPages = pagesData.pages;
 
-      if (pagesRes.ok) {
-        const data = await pagesRes.json();
-        stats.totalPages = data.pagination.total;
-        recentPages = data.pages;
-
-        // Count by status
-        const publishedRes = await fetch('/api/admin/pages?status=published&limit=1', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (publishedRes.ok) {
-          const pData = await publishedRes.json();
-          stats.publishedPages = pData.pagination.total;
-          stats.draftPages = stats.totalPages - stats.publishedPages;
-        }
-      }
+      // Count by status
+      const publishedData = await apiFetch<any>('/api/admin/pages?status=published&limit=1');
+      stats.publishedPages = publishedData.pagination.total;
+      stats.draftPages = stats.totalPages - stats.publishedPages;
 
       // Load media stats
-      const mediaRes = await fetch('/api/media', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (mediaRes.ok) {
-        const data = await mediaRes.json();
-        stats.totalMedia = data.total;
-        stats.totalImages = data.files.filter((f: any) => f.type === 'image').length;
-        stats.totalVideos = data.files.filter((f: any) => f.type === 'video').length;
-      }
+      const mediaData = await apiFetch<any>('/api/media');
+      stats.totalMedia = mediaData.total;
+      stats.totalImages = mediaData.files.filter((f: any) => f.type === 'image').length;
+      stats.totalVideos = mediaData.files.filter((f: any) => f.type === 'video').length;
 
       // Get user info
-      const userRes = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        userName = userData.user?.name || userData.user?.email || 'Admin';
-      }
+      const userData = await apiFetch<any>('/api/auth/me');
+      userName = userData.user?.name || userData.user?.email || 'Admin';
     } catch (e) {
       console.error('Dashboard load error:', e);
     } finally {
