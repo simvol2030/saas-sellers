@@ -269,14 +269,26 @@ mediaFolders.put('/:id', zValidator('json', updateFolderSchema), async (c) => {
         return c.json({ error: 'Cannot move folder to itself' }, 400);
       }
 
-      // Check for circular reference
-      let parent = await prisma.mediaFolder.findUnique({ where: { id: data.parentId } });
-      while (parent) {
-        if (parent.id === id) {
+      // Verify parent folder belongs to same site
+      const parentFolder = await prisma.mediaFolder.findFirst({
+        where: { id: data.parentId, siteId },
+      });
+      if (!parentFolder) {
+        return c.json({ error: 'Target folder not found' }, 404);
+      }
+
+      // Check for circular reference (within same site)
+      let currentParent = parentFolder;
+      while (currentParent) {
+        if (currentParent.id === id) {
           return c.json({ error: 'Cannot create circular folder structure' }, 400);
         }
-        if (parent.parentId === null) break;
-        parent = await prisma.mediaFolder.findUnique({ where: { id: parent.parentId } });
+        if (currentParent.parentId === null) break;
+        const nextParent = await prisma.mediaFolder.findFirst({
+          where: { id: currentParent.parentId, siteId },
+        });
+        if (!nextParent) break;
+        currentParent = nextParent;
       }
     }
 

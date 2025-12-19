@@ -172,9 +172,9 @@ menus.get(
         return c.json({ error: 'Menu not found' }, 404);
       }
 
-      // Resolve page links to current slugs
+      // Resolve page links to current slugs (within same site)
       const items = JSON.parse(menu.items);
-      const resolvedItems = await resolvePageLinks(items);
+      const resolvedItems = await resolvePageLinks(items, siteId);
 
       return c.json({
         menu: {
@@ -327,9 +327,9 @@ menus.get(
         return c.json({ error: 'Menu not found' }, 404);
       }
 
-      // Resolve page links and return items
+      // Resolve page links and return items (within same site)
       const items = JSON.parse(menu.items);
-      const resolvedItems = await resolvePageLinks(items);
+      const resolvedItems = await resolvePageLinks(items, siteId);
 
       return c.json({
         name: menu.name,
@@ -350,14 +350,19 @@ menus.get(
 /**
  * Resolve page IDs to current URLs
  * If a menu item has pageId, update its href to the page's current slug
+ * Only resolves pages within the same site for security
  */
-async function resolvePageLinks(items: any[]): Promise<any[]> {
+async function resolvePageLinks(items: any[], siteId: number): Promise<any[]> {
   const pageIds = extractPageIds(items);
 
   if (pageIds.length === 0) return items;
 
+  // Filter by siteId to prevent cross-site data leaks
   const pages = await prisma.page.findMany({
-    where: { id: { in: pageIds } },
+    where: {
+      id: { in: pageIds },
+      siteId, // Security: only resolve pages from same site
+    },
     select: { id: true, slug: true, path: true },
   });
 
