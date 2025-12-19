@@ -12,6 +12,7 @@
    */
 
   import { onMount } from 'svelte';
+  import { apiFetch } from '../../lib/api';
 
   interface Section {
     id: string;
@@ -113,40 +114,20 @@
       return;
     }
 
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      window.location.href = '/admin/login';
-      return;
-    }
-
     try {
-      const res = await fetch(`/api/admin/pages/${pageId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          window.location.href = '/admin/login';
-          return;
-        }
-        if (res.status === 404) {
-          error = 'Страница не найдена';
-          return;
-        }
-        throw new Error('Failed to load page');
-      }
-
-      const data = await res.json();
+      const data = await apiFetch(`/api/admin/pages/${pageId}`);
       page = {
         ...data.page,
         sections: data.page.sections || [],
         headerConfig: data.page.headerConfig || null,
         footerConfig: data.page.footerConfig || null,
       };
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Unknown error';
+    } catch (e: any) {
+      if (e.response?.status === 404) {
+        error = 'Страница не найдена';
+      } else {
+        error = e.message || 'Ошибка загрузки страницы';
+      }
     } finally {
       loading = false;
     }
@@ -158,35 +139,14 @@
     error = null;
     success = null;
 
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      window.location.href = '/admin/login';
-      return;
-    }
-
     try {
       const url = pageId ? `/api/admin/pages/${pageId}` : '/api/admin/pages';
       const method = pageId ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const data = await apiFetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(page),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.code === 'SLUG_EXISTS') {
-          error = 'Страница с таким slug уже существует';
-        } else {
-          error = data.error || 'Ошибка сохранения';
-        }
-        return;
-      }
 
       success = pageId ? 'Изменения сохранены' : 'Страница создана';
       hasUnsavedChanges = false;
@@ -197,8 +157,27 @@
           window.location.href = `/admin/pages/${data.page.id}`;
         }, 500);
       }
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Unknown error';
+    } catch (e: any) {
+      // Handle errors from apiFetch
+      const errorData = e.data || {};
+
+      if (errorData.code === 'SLUG_EXISTS') {
+        error = 'Страница с таким slug уже существует';
+      } else if (errorData.error && typeof errorData.error === 'object') {
+        // Handle Zod validation errors
+        if (errorData.error.message) {
+          try {
+            const errors = JSON.parse(errorData.error.message);
+            error = errors.map((err: any) => err.message).join(', ');
+          } catch {
+            error = errorData.error.message || 'Ошибка валидации';
+          }
+        } else {
+          error = 'Ошибка валидации';
+        }
+      } else {
+        error = errorData.error || e.message || 'Ошибка сохранения';
+      }
     } finally {
       saving = false;
     }
@@ -293,24 +272,17 @@
   async function togglePublish() {
     if (!pageId) return;
 
-    const token = localStorage.getItem('accessToken');
     const action = page.status === 'published' ? 'unpublish' : 'publish';
 
     try {
-      const res = await fetch(`/api/admin/pages/${pageId}/${action}`, {
+      const data = await apiFetch(`/api/admin/pages/${pageId}/${action}`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        page.status = data.page.status;
-        success = action === 'publish' ? 'Страница опубликована' : 'Страница снята с публикации';
-      }
-    } catch (e) {
-      error = 'Ошибка изменения статуса';
+      page.status = data.page.status;
+      success = action === 'publish' ? 'Страница опубликована' : 'Страница снята с публикации';
+    } catch (e: any) {
+      error = e.message || 'Ошибка изменения статуса';
     }
   }
 
