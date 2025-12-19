@@ -6,6 +6,8 @@
    * Features: pagination, search, filters, bulk actions
    */
 
+  import { onMount } from 'svelte';
+
   interface Page {
     id: number;
     slug: string;
@@ -201,8 +203,8 @@
     });
   }
 
-  // Initial load
-  $effect(() => {
+  // Initial load - use onMount to load once, not $effect which creates infinite loop
+  onMount(() => {
     loadPages();
   });
 </script>
