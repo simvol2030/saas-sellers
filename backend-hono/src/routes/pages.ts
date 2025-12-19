@@ -43,16 +43,16 @@ const createPageSchema = z.object({
     .max(100, 'Slug too long')
     .regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens'),
   title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
-  description: z.string().max(500).optional(),
+  description: z.string().max(500).nullish(),
   sections: z.array(sectionSchema).default([]),
-  headerConfig: z.string().optional(), // JSON string
-  footerConfig: z.string().optional(), // JSON string
+  headerConfig: z.string().nullish(), // JSON string
+  footerConfig: z.string().nullish(), // JSON string
   hideHeader: z.boolean().default(false),
   hideFooter: z.boolean().default(false),
-  metaTitle: z.string().max(100).optional(),
-  metaDescription: z.string().max(200).optional(),
-  ogImage: z.string().optional(),
-  canonicalUrl: z.string().optional(),
+  metaTitle: z.string().max(100).nullish(),
+  metaDescription: z.string().max(200).nullish(),
+  ogImage: z.string().nullish(),
+  canonicalUrl: z.string().nullish(),
   noindex: z.boolean().default(false),
   prerender: z.boolean().default(true),
 });

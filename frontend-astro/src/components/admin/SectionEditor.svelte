@@ -7,6 +7,7 @@
    */
 
   import { onMount } from 'svelte';
+  import { apiFetch } from '../../lib/api';
   import MediaPicker from './MediaPicker.svelte';
 
   interface SectionItem {
@@ -252,32 +253,8 @@
 
   // Load section data
   async function loadSection() {
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      window.location.href = '/admin/login';
-      return;
-    }
-
     try {
-      const res = await fetch(`/api/admin/pages/${pageId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        if (res.status === 401) {
-          window.location.href = '/admin/login';
-          return;
-        }
-        if (res.status === 404) {
-          error = 'Страница не найдена';
-          return;
-        }
-        throw new Error('Failed to load page');
-      }
-
-      const data = await res.json();
+      const data = await apiFetch(`/api/admin/pages/${pageId}`);
       pageTitle = data.page.title;
 
       if (!data.page.sections || !data.page.sections[sectionIndex]) {
@@ -286,8 +263,28 @@
       }
 
       section = data.page.sections[sectionIndex];
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Unknown error';
+
+      // Normalize null/undefined string fields to empty strings for MediaPicker compatibility
+      const stringFields = [
+        'title', 'subtitle', 'description', 'content',
+        'backgroundImage', 'backgroundVideo', 'image', 'src', 'poster',
+        'ctaText', 'ctaHref', 'ctaLink', 'ctaSecondaryText', 'ctaSecondaryHref',
+        'secondaryCtaText', 'secondaryCtaLink', 'buttonText', 'buttonHref',
+        'secondaryText', 'secondaryHref', 'className', 'imageAlt', 'videoId',
+        'mapUrl', 'tocTitle', 'submitText', 'successMessage'
+      ];
+
+      stringFields.forEach(field => {
+        if (section && (section[field] === null || section[field] === undefined)) {
+          section[field] = '';
+        }
+      });
+    } catch (e: any) {
+      if (e.response?.status === 404) {
+        error = 'Страница не найдена';
+      } else {
+        error = e.message || 'Failed to load page';
+      }
     } finally {
       loading = false;
     }
@@ -301,44 +298,21 @@
     error = null;
     success = null;
 
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      window.location.href = '/admin/login';
-      return;
-    }
-
     try {
       // First get current page data
-      const getRes = await fetch(`/api/admin/pages/${pageId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!getRes.ok) throw new Error('Failed to load page');
-
-      const pageData = await getRes.json();
+      const pageData = await apiFetch(`/api/admin/pages/${pageId}`);
       const sections = pageData.page.sections;
       sections[sectionIndex] = section;
 
       // Update page with modified sections
-      const res = await fetch(`/api/admin/pages/${pageId}`, {
+      await apiFetch(`/api/admin/pages/${pageId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ sections }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to save');
-      }
-
       success = 'Секция сохранена';
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Unknown error';
+    } catch (e: any) {
+      error = e.message || 'Failed to save';
     } finally {
       saving = false;
     }

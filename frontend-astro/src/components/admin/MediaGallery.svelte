@@ -25,7 +25,7 @@
     filterType?: 'image' | 'video' | 'document' | null;
   }
 
-  let { selectable = false, onSelect, filterType = null }: Props = $props();
+  let { selectable = false, onSelect = undefined, filterType = null }: Props = $props();
 
   // State
   let files: MediaFile[] = $state([]);
