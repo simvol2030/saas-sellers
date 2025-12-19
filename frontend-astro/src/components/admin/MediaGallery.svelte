@@ -6,6 +6,7 @@
    */
 
   import { onMount } from 'svelte';
+  import { apiFetch } from '../../lib/api';
 
   interface MediaFile {
     name: string;
@@ -50,27 +51,10 @@
     error = null;
 
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        window.location.href = '/admin/login';
-        return;
-      }
-
-      const res = await fetch('/api/media', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.status === 401) {
-        window.location.href = '/admin/login';
-        return;
-      }
-
-      if (!res.ok) throw new Error('Failed to load files');
-
-      const data = await res.json();
+      const data = await apiFetch('/api/media');
       files = data.files;
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Unknown error';
+    } catch (e: any) {
+      error = e.message || 'Failed to load files';
     } finally {
       loading = false;
     }
@@ -82,12 +66,6 @@
     const fileList = input.files;
     if (!fileList?.length) return;
 
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      window.location.href = '/admin/login';
-      return;
-    }
-
     uploading = true;
     uploadProgress = 0;
     error = null;
@@ -98,16 +76,10 @@
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch('/api/media/upload', {
+        await apiFetch('/api/media/upload', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         });
-
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'Upload failed');
-        }
 
         uploadProgress = ((i + 1) / fileList.length) * 100;
       }
@@ -115,8 +87,8 @@
       // Reload files after upload
       await loadFiles();
       showUpload = false;
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Upload failed';
+    } catch (e: any) {
+      error = e.message || 'Upload failed';
     } finally {
       uploading = false;
       uploadProgress = 0;
@@ -128,32 +100,18 @@
   async function deleteFile(file: MediaFile) {
     if (!confirm(`Удалить файл "${file.name}"?`)) return;
 
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      window.location.href = '/admin/login';
-      return;
-    }
-
     try {
-      const res = await fetch(`/api/media${file.path}`, {
+      await apiFetch(`/api/media${file.path}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (res.status === 401) {
-        window.location.href = '/admin/login';
-        return;
-      }
-
-      if (!res.ok) throw new Error('Failed to delete');
 
       files = files.filter(f => f.name !== file.name);
 
       if (selectedFile?.name === file.name) {
         selectedFile = null;
       }
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Delete failed';
+    } catch (e: any) {
+      error = e.message || 'Delete failed';
     }
   }
 

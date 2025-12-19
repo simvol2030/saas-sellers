@@ -81,7 +81,8 @@ export async function apiFetch<T = any>(
   if (accessToken && !skipAuth) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
-  if (fetchOptions.body && !headers.has('Content-Type')) {
+  // Only set Content-Type for non-FormData bodies
+  if (fetchOptions.body && !headers.has('Content-Type') && !(fetchOptions.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
 
