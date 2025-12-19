@@ -109,8 +109,22 @@ export async function apiFetch<T = any>(
     }
   }
 
-  // Parse response
-  const data = await response.json();
+  // Parse response based on Content-Type
+  const contentType = response.headers.get('Content-Type') || '';
+  let data: any;
+
+  try {
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // Plain text or other content type
+      const text = await response.text();
+      data = { error: text || `HTTP ${response.status}` };
+    }
+  } catch (parseError) {
+    // If parsing fails, create generic error object
+    data = { error: `HTTP ${response.status}` };
+  }
 
   // Throw on error
   if (!response.ok) {
