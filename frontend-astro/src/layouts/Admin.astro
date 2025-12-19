@@ -28,6 +28,8 @@ const { title, description } = Astro.props;
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: 'dashboard' },
   { href: '/admin/pages', label: 'Страницы', icon: 'pages' },
+  { href: '/admin/blocks', label: 'Блоки', icon: 'blocks' },
+  { href: '/admin/menus', label: 'Меню', icon: 'menus' },
   { href: '/admin/media', label: 'Медиа', icon: 'media' },
   { href: '/admin/theme', label: 'Дизайн', icon: 'theme' },
   { href: '/admin/settings', label: 'Настройки', icon: 'settings' },
@@ -279,6 +281,8 @@ const currentPath = Astro.url.pathname;
 
     .nav-icon[data-icon="dashboard"]::before { content: '📊'; }
     .nav-icon[data-icon="pages"]::before { content: '📄'; }
+    .nav-icon[data-icon="blocks"]::before { content: '🧩'; }
+    .nav-icon[data-icon="menus"]::before { content: '☰'; }
     .nav-icon[data-icon="media"]::before { content: '🖼️'; }
     .nav-icon[data-icon="theme"]::before { content: '🎨'; }
     .nav-icon[data-icon="settings"]::before { content: '⚙️'; }

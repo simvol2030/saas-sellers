@@ -17,6 +17,7 @@ import tags from './routes/tags.js';
 import mediaFolders from './routes/media-folders.js';
 import blocks from './routes/blocks.js';
 import menus from './routes/menus.js';
+import exportImport from './routes/export-import.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma } from './lib/db.js';
 
@@ -85,6 +86,8 @@ app.route('/api/admin/media/folders', mediaFolders);
 app.route('/api/admin/blocks', blocks);
 app.route('/api/admin/menus', menus);
 app.route('/api/menus', menus); // Public menu access
+// Phase 2: Export/Import
+app.route('/api/admin', exportImport);
 
 // Error handler (must be last)
 app.onError(errorHandler);
