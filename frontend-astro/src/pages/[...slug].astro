@@ -1,0 +1,184 @@
+---
+/**
+ * Dynamic Page Renderer - catch-all route for published pages
+ *
+ * Обрабатывает все неизвестные маршруты и проверяет их в базе данных.
+ * Если страница найдена и опубликована - рендерит её, иначе показывает 404.
+ */
+export const prerender = false;
+
+import Base from '../layouts/Base.astro';
+
+// Section components
+import Hero from '../components/sections/Hero.astro';
+import HeroMin from '../components/sections/HeroMin.astro';
+import TextBlock from '../components/sections/TextBlock.astro';
+import Snippet from '../components/sections/Snippet.astro';
+import CTA from '../components/sections/CTA.astro';
+import PhotoGallery from '../components/sections/PhotoGallery.astro';
+import PhotoSlider from '../components/sections/PhotoSlider.astro';
+import VideoYouTube from '../components/sections/VideoYouTube.astro';
+import VideoLocal from '../components/sections/VideoLocal.astro';
+import MediaMix from '../components/sections/MediaMix.astro';
+import FAQ from '../components/sections/FAQ.astro';
+import Pricing from '../components/sections/Pricing.astro';
+import CompareTable from '../components/sections/CompareTable.astro';
+import Testimonials from '../components/sections/Testimonials.astro';
+import Features from '../components/sections/Features.astro';
+import Timeline from '../components/sections/Timeline.astro';
+import Stats from '../components/sections/Stats.astro';
+import Team from '../components/sections/Team.astro';
+import Partners from '../components/sections/Partners.astro';
+import InstagramFeed from '../components/sections/InstagramFeed.astro';
+import FacebookPost from '../components/sections/FacebookPost.astro';
+import Longread from '../components/sections/Longread.astro';
+import ContactForm from '../components/sections/ContactForm.astro';
+
+// Section components map
+const sectionComponents: Record<string, any> = {
+  hero: Hero,
+  heroMin: HeroMin,
+  textBlock: TextBlock,
+  snippet: Snippet,
+  cta: CTA,
+  photoGallery: PhotoGallery,
+  photoSlider: PhotoSlider,
+  videoYouTube: VideoYouTube,
+  videoLocal: VideoLocal,
+  mediaMix: MediaMix,
+  faq: FAQ,
+  pricing: Pricing,
+  compareTable: CompareTable,
+  testimonials: Testimonials,
+  features: Features,
+  timeline: Timeline,
+  stats: Stats,
+  team: Team,
+  partners: Partners,
+  instagramFeed: InstagramFeed,
+  facebookPost: FacebookPost,
+  longread: Longread,
+  contactForm: ContactForm,
+};
+
+// Reserved routes that should not be handled as dynamic pages
+const RESERVED_ROUTES = [
+  'admin',
+  'blog',
+  'about',
+  'p',
+  '404',
+  'api',
+];
+
+const slug = Astro.params.slug;
+
+// Check if this is a reserved route
+if (slug && RESERVED_ROUTES.some(route => slug.startsWith(route))) {
+  // Let Astro handle this with its own routing
+  return Astro.redirect('/404');
+}
+
+// Fetch page from API
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3001';
+
+interface PageData {
+  id: number;
+  slug: string;
+  title: string;
+  description?: string;
+  sections: Array<{
+    type: string;
+    id?: string;
+    hidden?: boolean;
+    [key: string]: any;
+  }>;
+  hideHeader?: boolean;
+  hideFooter?: boolean;
+  metaTitle?: string;
+  metaDescription?: string;
+  ogImage?: string;
+  canonicalUrl?: string;
+  noindex?: boolean;
+}
+
+let page: PageData | null = null;
+let error: string | null = null;
+
+try {
+  const res = await fetch(`${API_URL}/api/pages/${slug}`);
+
+  if (res.ok) {
+    const data = await res.json();
+    page = data.page;
+  } else if (res.status === 404) {
+    error = 'Page not found';
+  } else {
+    error = 'Failed to load page';
+  }
+} catch (e) {
+  console.error('Error fetching page:', e);
+  error = 'Failed to connect to API';
+}
+
+// Handle 404
+if (!page || error) {
+  return Astro.redirect('/404');
+}
+
+// Filter visible sections
+const visibleSections = page.sections.filter(s => !s.hidden);
+
+// SEO
+const seoTitle = page.metaTitle || page.title;
+const seoDescription = page.metaDescription || page.description;
+---
+
+<Base
+  title={seoTitle}
+  description={seoDescription}
+  image={page.ogImage}
+  canonicalUrl={page.canonicalUrl}
+  noindex={page.noindex}
+  hideHeader={page.hideHeader}
+  hideFooter={page.hideFooter}
+  fullWidth
+>
+  <div class="landing-page">
+    {visibleSections.map((section) => {
+      const Component = sectionComponents[section.type];
+
+      if (!Component) {
+        console.warn(`Unknown section type: ${section.type}`);
+        return null;
+      }
+
+      // Remove 'type' and 'hidden' from props, pass the rest
+      const { type, hidden, ...sectionProps } = section;
+
+      return <Component {...sectionProps} />;
+    })}
+  </div>
+</Base>
+
+<style>
+  .landing-page {
+    min-height: 100vh;
+  }
+
+  .landing-page :global(.section) {
+    padding: var(--spacing-16) var(--spacing-4);
+  }
+
+  @media (min-width: 768px) {
+    .landing-page :global(.section) {
+      padding: var(--spacing-20) var(--spacing-6);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .landing-page :global(.section) {
+      padding: var(--spacing-24) var(--spacing-8);
+    }
+  }
+</style>
