@@ -1,0 +1,637 @@
+---
+/**
+ * Header Component - шапка сайта с двухуровневым меню
+ *
+ * Features:
+ * - Двухуровневая навигация (dropdowns)
+ * - Theme toggle (light/dark/system)
+ * - Мобильное меню
+ * - Sticky header
+ * - Конфигурируемый через пропсы
+ */
+
+export interface MenuItem {
+  label: string;
+  href: string;
+  external?: boolean;
+  children?: MenuItem[];
+}
+
+export interface HeaderConfig {
+  logo?: {
+    text?: string;
+    shortText?: string;
+    image?: string;
+    href?: string;
+  };
+  navigation?: MenuItem[];
+  showThemeToggle?: boolean;
+  showSearch?: boolean;
+  sticky?: boolean;
+}
+
+interface Props {
+  config?: HeaderConfig;
+}
+
+// Default navigation for demo
+const defaultNavigation: MenuItem[] = [
+  { label: 'Главная', href: '/' },
+  {
+    label: 'Услуги',
+    href: '/services',
+    children: [
+      { label: 'Консалтинг', href: '/services/consulting' },
+      { label: 'Разработка', href: '/services/development' },
+      { label: 'Поддержка', href: '/services/support' },
+    ]
+  },
+  { label: 'Блог', href: '/blog' },
+  {
+    label: 'О нас',
+    href: '/about',
+    children: [
+      { label: 'Команда', href: '/about/team' },
+      { label: 'История', href: '/about/history' },
+      { label: 'Контакты', href: '/about/contacts' },
+    ]
+  },
+];
+
+const defaultConfig: HeaderConfig = {
+  logo: {
+    text: 'Content Platform',
+    shortText: 'CP',
+    href: '/',
+  },
+  navigation: defaultNavigation,
+  showThemeToggle: true,
+  showSearch: true,
+  sticky: true,
+};
+
+const { config = {} } = Astro.props;
+const mergedConfig = { ...defaultConfig, ...config };
+const { logo, navigation, showThemeToggle, showSearch, sticky } = mergedConfig;
+
+const currentPath = Astro.url.pathname;
+
+// Check if link is active (current page or parent of current)
+function isActive(href: string): boolean {
+  if (href === '/') return currentPath === '/';
+  return currentPath.startsWith(href);
+}
+---
+
+<header class:list={['header', { 'header-sticky': sticky }]}>
+  <div class="header-container container">
+    <!-- Logo -->
+    <a href={logo?.href || '/'} class="logo">
+      {logo?.image ? (
+        <img src={logo.image} alt={logo.text || 'Logo'} class="logo-image" />
+      ) : (
+        <>
+          <span class="logo-icon">{logo?.shortText || 'CP'}</span>
+          <span class="logo-text">{logo?.text || 'Content Platform'}</span>
+        </>
+      )}
+    </a>
+
+    <!-- Desktop Navigation -->
+    <nav class="nav-desktop" aria-label="Основная навигация">
+      {navigation?.map((item) => (
+        item.children && item.children.length > 0 ? (
+          <div class="nav-dropdown">
+            <button
+              class:list={['nav-link nav-dropdown-toggle', { active: isActive(item.href) }]}
+              aria-expanded="false"
+              aria-haspopup="true"
+            >
+              {item.label}
+              <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m6 9 6 6 6-6"/>
+              </svg>
+            </button>
+            <div class="nav-dropdown-menu">
+              {item.children.map((child) => (
+                <a
+                  href={child.href}
+                  class:list={['nav-dropdown-item', { active: isActive(child.href) }]}
+                  target={child.external ? '_blank' : undefined}
+                  rel={child.external ? 'noopener noreferrer' : undefined}
+                >
+                  {child.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <a
+            href={item.href}
+            class:list={['nav-link', { active: isActive(item.href) }]}
+            target={item.external ? '_blank' : undefined}
+            rel={item.external ? 'noopener noreferrer' : undefined}
+          >
+            {item.label}
+          </a>
+        )
+      ))}
+    </nav>
+
+    <!-- Actions -->
+    <div class="header-actions">
+      {showSearch && (
+        <button class="icon-btn search-btn" aria-label="Поиск">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </svg>
+        </button>
+      )}
+
+      {showThemeToggle && (
+        <button class="icon-btn theme-toggle" aria-label="Переключить тему" data-theme-toggle>
+          <svg class="theme-icon-light" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2"/>
+            <path d="M12 20v2"/>
+            <path d="m4.93 4.93 1.41 1.41"/>
+            <path d="m17.66 17.66 1.41 1.41"/>
+            <path d="M2 12h2"/>
+            <path d="M20 12h2"/>
+            <path d="m6.34 17.66-1.41 1.41"/>
+            <path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+          <svg class="theme-icon-dark" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+          </svg>
+        </button>
+      )}
+
+      <!-- Mobile menu toggle -->
+      <button class="icon-btn menu-toggle" aria-label="Меню" aria-expanded="false" data-menu-toggle>
+        <span class="menu-icon"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Navigation -->
+  <nav class="nav-mobile" aria-label="Мобильная навигация" aria-hidden="true" data-mobile-nav>
+    <div class="nav-mobile-inner">
+      {navigation?.map((item) => (
+        item.children && item.children.length > 0 ? (
+          <div class="mobile-nav-group">
+            <button
+              class:list={['mobile-nav-toggle', { active: isActive(item.href) }]}
+              aria-expanded="false"
+              data-mobile-dropdown
+            >
+              {item.label}
+              <svg class="dropdown-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m6 9 6 6 6-6"/>
+              </svg>
+            </button>
+            <div class="mobile-nav-submenu">
+              {item.children.map((child) => (
+                <a
+                  href={child.href}
+                  class:list={['mobile-nav-link', { active: isActive(child.href) }]}
+                >
+                  {child.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <a
+            href={item.href}
+            class:list={['mobile-nav-link', { active: isActive(item.href) }]}
+          >
+            {item.label}
+          </a>
+        )
+      ))}
+    </div>
+  </nav>
+</header>
+
+<style>
+  .header {
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    z-index: var(--z-sticky);
+  }
+
+  .header-sticky {
+    position: sticky;
+    top: 0;
+  }
+
+  .header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+    gap: var(--spacing-4);
+  }
+
+  /* Logo */
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    font-weight: var(--font-font-weight-bold);
+    color: var(--color-text);
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  .logo:hover {
+    color: var(--color-text);
+  }
+
+  .logo-image {
+    height: 40px;
+    width: auto;
+  }
+
+  .logo-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-bold);
+  }
+
+  .logo-text {
+    display: none;
+  }
+
+  @media (min-width: 640px) {
+    .logo-text {
+      display: block;
+      font-size: var(--font-font-size-lg);
+    }
+  }
+
+  /* Desktop Navigation */
+  .nav-desktop {
+    display: none;
+    align-items: center;
+    gap: var(--spacing-1);
+  }
+
+  @media (min-width: 1024px) {
+    .nav-desktop {
+      display: flex;
+    }
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-2) var(--spacing-4);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-medium);
+    border-radius: var(--radius-lg);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .nav-link:hover {
+    color: var(--color-text);
+    background: var(--color-surface-hover);
+  }
+
+  .nav-link.active {
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+  }
+
+  /* Dropdown */
+  .nav-dropdown {
+    position: relative;
+  }
+
+  .nav-dropdown-toggle {
+    font-family: inherit;
+  }
+
+  .dropdown-arrow {
+    transition: transform var(--transition-fast);
+  }
+
+  .nav-dropdown:hover .dropdown-arrow,
+  .nav-dropdown-toggle[aria-expanded="true"] .dropdown-arrow {
+    transform: rotate(180deg);
+  }
+
+  .nav-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 200px;
+    padding: var(--spacing-2);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    transition: all var(--transition-fast);
+    z-index: var(--z-dropdown);
+  }
+
+  .nav-dropdown:hover .nav-dropdown-menu,
+  .nav-dropdown-toggle[aria-expanded="true"] + .nav-dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(4px);
+  }
+
+  .nav-dropdown-item {
+    display: block;
+    padding: var(--spacing-3) var(--spacing-4);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: var(--font-font-size-sm);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+  }
+
+  .nav-dropdown-item:hover {
+    color: var(--color-text);
+    background: var(--color-surface-hover);
+  }
+
+  .nav-dropdown-item.active {
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+  }
+
+  /* Header Actions */
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-lg);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .icon-btn:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text);
+  }
+
+  /* Theme Toggle */
+  .theme-toggle .theme-icon-dark {
+    display: none;
+  }
+
+  [data-theme="dark"] .theme-toggle .theme-icon-light {
+    display: none;
+  }
+
+  [data-theme="dark"] .theme-toggle .theme-icon-dark {
+    display: block;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-toggle .theme-icon-light {
+      display: none;
+    }
+    :root:not([data-theme="light"]) .theme-toggle .theme-icon-dark {
+      display: block;
+    }
+  }
+
+  /* Mobile Menu Toggle */
+  .menu-toggle {
+    position: relative;
+  }
+
+  @media (min-width: 1024px) {
+    .menu-toggle {
+      display: none;
+    }
+  }
+
+  .menu-icon {
+    position: relative;
+    width: 20px;
+    height: 2px;
+    background: var(--color-text);
+    border-radius: 2px;
+    transition: all var(--transition-fast);
+  }
+
+  .menu-icon::before,
+  .menu-icon::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--color-text);
+    border-radius: 2px;
+    transition: all var(--transition-fast);
+  }
+
+  .menu-icon::before {
+    top: -6px;
+  }
+
+  .menu-icon::after {
+    top: 6px;
+  }
+
+  .menu-toggle[aria-expanded="true"] .menu-icon {
+    background: transparent;
+  }
+
+  .menu-toggle[aria-expanded="true"] .menu-icon::before {
+    top: 0;
+    transform: rotate(45deg);
+  }
+
+  .menu-toggle[aria-expanded="true"] .menu-icon::after {
+    top: 0;
+    transform: rotate(-45deg);
+  }
+
+  /* Mobile Navigation */
+  .nav-mobile {
+    display: none;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
+  }
+
+  .nav-mobile.open {
+    display: block;
+  }
+
+  @media (min-width: 1024px) {
+    .nav-mobile {
+      display: none !important;
+    }
+  }
+
+  .nav-mobile-inner {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-4);
+    gap: var(--spacing-1);
+  }
+
+  .mobile-nav-link {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-4);
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: var(--font-font-size-base);
+    font-weight: var(--font-font-weight-medium);
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-fast);
+  }
+
+  .mobile-nav-link:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .mobile-nav-link.active {
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+  }
+
+  .mobile-nav-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: var(--spacing-4);
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: var(--font-font-size-base);
+    font-weight: var(--font-font-weight-medium);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .mobile-nav-toggle:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .mobile-nav-toggle.active {
+    color: var(--color-primary);
+  }
+
+  .mobile-nav-toggle[aria-expanded="true"] .dropdown-arrow {
+    transform: rotate(180deg);
+  }
+
+  .mobile-nav-submenu {
+    display: none;
+    flex-direction: column;
+    padding-left: var(--spacing-4);
+    gap: var(--spacing-1);
+  }
+
+  .mobile-nav-toggle[aria-expanded="true"] + .mobile-nav-submenu {
+    display: flex;
+  }
+
+  .mobile-nav-submenu .mobile-nav-link {
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .mobile-nav-submenu .mobile-nav-link.active {
+    color: var(--color-primary);
+  }
+</style>
+
+<script>
+  // Mobile menu toggle
+  document.addEventListener('DOMContentLoaded', () => {
+    const menuToggle = document.querySelector('[data-menu-toggle]');
+    const mobileNav = document.querySelector('[data-mobile-nav]');
+
+    menuToggle?.addEventListener('click', () => {
+      const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true';
+      menuToggle.setAttribute('aria-expanded', String(!isExpanded));
+      mobileNav?.classList.toggle('open');
+      mobileNav?.setAttribute('aria-hidden', String(isExpanded));
+    });
+
+    // Mobile dropdown toggles
+    const mobileDropdowns = document.querySelectorAll('[data-mobile-dropdown]');
+    mobileDropdowns.forEach((toggle) => {
+      toggle.addEventListener('click', () => {
+        const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', String(!isExpanded));
+      });
+    });
+
+    // Theme toggle
+    const themeToggle = document.querySelector('[data-theme-toggle]');
+    themeToggle?.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    });
+
+    // Close mobile menu on link click
+    const mobileLinks = mobileNav?.querySelectorAll('a');
+    mobileLinks?.forEach((link) => {
+      link.addEventListener('click', () => {
+        menuToggle?.setAttribute('aria-expanded', 'false');
+        mobileNav?.classList.remove('open');
+        mobileNav?.setAttribute('aria-hidden', 'true');
+      });
+    });
+
+    // Close mobile menu on escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && mobileNav?.classList.contains('open')) {
+        menuToggle?.setAttribute('aria-expanded', 'false');
+        mobileNav?.classList.remove('open');
+        mobileNav?.setAttribute('aria-hidden', 'true');
+      }
+    });
+  });
+</script>

@@ -1,0 +1,23 @@
+---
+/**
+ * Admin Dashboard
+ *
+ * Overview of content, stats, and quick actions
+ */
+import Admin from '../../layouts/Admin.astro';
+import Dashboard from '../../components/admin/Dashboard.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Dashboard">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <Dashboard client:load />
+</Admin>

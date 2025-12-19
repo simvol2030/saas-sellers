@@ -1,0 +1,217 @@
+---
+/**
+ * VideoYouTube Section - встроенное YouTube видео
+ *
+ * Features:
+ * - Privacy-enhanced embedding (youtube-nocookie.com)
+ * - Lazy loading iframe
+ * - Адаптивное соотношение сторон
+ * - Poster image с кнопкой play
+ * - Опциональный заголовок
+ */
+
+import type { VideoYouTubeSection } from '../../lib/parser';
+
+interface Props extends Omit<VideoYouTubeSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  videoId,
+  aspectRatio = '16:9',
+} = Astro.props;
+
+const aspectRatioClass = {
+  '16:9': 'aspect-16-9',
+  '4:3': 'aspect-4-3',
+  '1:1': 'aspect-1-1',
+}[aspectRatio];
+
+// YouTube thumbnail URL
+const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`;
+
+const videoContainerId = id || `yt-${videoId}`;
+---
+
+<section
+  id={id}
+  class:list={['video-youtube section', className]}
+>
+  <div class="container">
+    {title && (
+      <h2 class="video-youtube-title">{title}</h2>
+    )}
+
+    <div
+      class:list={['video-youtube-wrapper', aspectRatioClass]}
+      data-video-id={videoId}
+      data-embed-url={embedUrl}
+      id={videoContainerId}
+    >
+      <!-- Poster with play button -->
+      <div class="video-youtube-poster">
+        <img
+          src={thumbnailUrl}
+          alt={title || 'YouTube видео'}
+          class="video-youtube-thumbnail"
+          loading="lazy"
+        />
+        <button
+          type="button"
+          class="video-youtube-play"
+          aria-label="Воспроизвести видео"
+        >
+          <svg width="68" height="48" viewBox="0 0 68 48">
+            <path
+              class="video-youtube-play-bg"
+              d="M66.52,7.74c-0.78-2.93-2.49-5.41-5.42-6.19C55.79,.13,34,0,34,0S12.21,.13,6.9,1.55 C3.97,2.33,2.27,4.81,1.48,7.74C0.06,13.05,0,24,0,24s0.06,10.95,1.48,16.26c0.78,2.93,2.49,5.41,5.42,6.19 C12.21,47.87,34,48,34,48s21.79-0.13,27.1-1.55c2.93-0.78,4.64-3.26,5.42-6.19C67.94,34.95,68,24,68,24S67.94,13.05,66.52,7.74z"
+              fill="#f00"
+            />
+            <path d="M 45,24 27,14 27,34" fill="#fff"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Iframe placeholder (will be inserted on click) -->
+      <div class="video-youtube-iframe-container"></div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .video-youtube-title {
+    margin: 0 0 var(--spacing-8);
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    text-align: center;
+    color: var(--color-text);
+  }
+
+  .video-youtube-wrapper {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: var(--radius-2xl);
+    background: #000;
+    box-shadow: var(--shadow-xl);
+  }
+
+  /* Aspect ratio classes */
+  .aspect-16-9 {
+    aspect-ratio: 16 / 9;
+  }
+
+  .aspect-4-3 {
+    aspect-ratio: 4 / 3;
+  }
+
+  .aspect-1-1 {
+    aspect-ratio: 1 / 1;
+  }
+
+  /* Poster */
+  .video-youtube-poster {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+  }
+
+  .video-youtube-wrapper.loaded .video-youtube-poster {
+    display: none;
+  }
+
+  .video-youtube-thumbnail {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .video-youtube-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: transform var(--transition-fast), filter var(--transition-fast);
+  }
+
+  .video-youtube-play:hover {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+
+  .video-youtube-play:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 4px;
+  }
+
+  .video-youtube-play-bg {
+    transition: fill var(--transition-fast);
+  }
+
+  .video-youtube-play:hover .video-youtube-play-bg {
+    fill: #cc0000;
+  }
+
+  /* Iframe */
+  .video-youtube-iframe-container {
+    display: none;
+    position: absolute;
+    inset: 0;
+  }
+
+  .video-youtube-wrapper.loaded .video-youtube-iframe-container {
+    display: block;
+  }
+
+  .video-youtube-iframe-container :global(iframe) {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  /* Dark overlay before loading */
+  .video-youtube-poster::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+    transition: background var(--transition-fast);
+  }
+
+  .video-youtube-poster:hover::after {
+    background: rgba(0, 0, 0, 0.1);
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const videoWrappers = document.querySelectorAll('.video-youtube-wrapper');
+
+    videoWrappers.forEach((wrapper) => {
+      const videoId = wrapper.dataset.videoId;
+      const embedUrl = wrapper.dataset.embedUrl;
+      const poster = wrapper.querySelector('.video-youtube-poster');
+      const iframeContainer = wrapper.querySelector('.video-youtube-iframe-container');
+
+      if (!poster || !iframeContainer) return;
+
+      const loadVideo = () => {
+        const iframe = document.createElement('iframe');
+        iframe.src = embedUrl;
+        iframe.title = 'YouTube video player';
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+        iframe.allowFullscreen = true;
+
+        iframeContainer.appendChild(iframe);
+        wrapper.classList.add('loaded');
+      };
+
+      poster.addEventListener('click', loadVideo);
+    });
+  });
+</script>

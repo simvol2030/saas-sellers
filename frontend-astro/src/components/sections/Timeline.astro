@@ -1,0 +1,254 @@
+---
+/**
+ * Timeline Section - этапы/таймлайн
+ *
+ * Features:
+ * - Вертикальный таймлайн с линией
+ * - Чередующиеся стороны на desktop
+ * - Иконки или номера
+ * - Даты
+ * - Анимация появления
+ */
+
+import type { TimelineSection } from '../../lib/parser';
+
+interface Props extends Omit<TimelineSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  items,
+} = Astro.props;
+
+const timelineId = id || `timeline-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<section
+  id={id}
+  class:list={['timeline section', className]}
+>
+  <div class="container">
+    {title && (
+      <h2 class="timeline-title">{title}</h2>
+    )}
+
+    <div class="timeline-wrapper" data-timeline={timelineId}>
+      <div class="timeline-line" aria-hidden="true"></div>
+
+      {items.map((item, index) => (
+        <div
+          class="timeline-item"
+          data-index={index}
+        >
+          <div class="timeline-marker">
+            {item.icon ? (
+              <span class="timeline-icon" set:html={item.icon} />
+            ) : (
+              <span class="timeline-number">{index + 1}</span>
+            )}
+          </div>
+
+          <div class="timeline-content">
+            {item.date && (
+              <span class="timeline-date">{item.date}</span>
+            )}
+            <h3 class="timeline-item-title">{item.title}</h3>
+            <p class="timeline-description">{item.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .timeline-title {
+    margin: 0 0 var(--spacing-12);
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    text-align: center;
+    color: var(--color-text);
+  }
+
+  .timeline-wrapper {
+    position: relative;
+    max-width: 800px;
+    margin-inline: auto;
+  }
+
+  /* Vertical line */
+  .timeline-line {
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--color-border);
+  }
+
+  @media (min-width: 768px) {
+    .timeline-line {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Item */
+  .timeline-item {
+    position: relative;
+    padding-left: 60px;
+    padding-bottom: var(--spacing-8);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .timeline-item.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .timeline-item:last-child {
+    padding-bottom: 0;
+  }
+
+  @media (min-width: 768px) {
+    .timeline-item {
+      padding-left: 0;
+      padding-right: 0;
+      width: 50%;
+    }
+
+    .timeline-item:nth-child(odd) {
+      margin-left: 50%;
+      padding-left: var(--spacing-12);
+    }
+
+    .timeline-item:nth-child(even) {
+      margin-right: 50%;
+      padding-right: var(--spacing-12);
+      text-align: right;
+    }
+  }
+
+  /* Marker */
+  .timeline-marker {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-background);
+    border: 2px solid var(--color-primary);
+    border-radius: var(--radius-full);
+    z-index: 1;
+  }
+
+  @media (min-width: 768px) {
+    .timeline-item:nth-child(odd) .timeline-marker {
+      left: calc(-1 * var(--spacing-12) - 20px);
+    }
+
+    .timeline-item:nth-child(even) .timeline-marker {
+      right: calc(-1 * var(--spacing-12) - 20px);
+      left: auto;
+    }
+  }
+
+  .timeline-number {
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-bold);
+    color: var(--color-primary);
+  }
+
+  .timeline-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+    font-size: 18px;
+  }
+
+  .timeline-icon :global(svg) {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Content */
+  .timeline-content {
+    padding: var(--spacing-5);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition: box-shadow var(--transition-normal);
+  }
+
+  .timeline-item:hover .timeline-content {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .timeline-date {
+    display: inline-block;
+    padding: var(--spacing-1) var(--spacing-3);
+    margin-bottom: var(--spacing-2);
+    font-size: var(--font-font-size-xs);
+    font-weight: var(--font-font-weight-medium);
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+    border-radius: var(--radius-full);
+  }
+
+  .timeline-item-title {
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--font-font-size-lg);
+    font-weight: var(--font-font-weight-semibold);
+    color: var(--color-text);
+  }
+
+  .timeline-description {
+    margin: 0;
+    font-size: var(--font-font-size-base);
+    color: var(--color-text-secondary);
+    line-height: var(--font-line-height-relaxed);
+  }
+
+  /* Animation connector */
+  .timeline-item.visible .timeline-marker {
+    animation: pulse 0.5s ease;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+</style>
+
+<script define:vars={{ timelineId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const timeline = document.querySelector(`[data-timeline="${timelineId}"]`);
+    if (!timeline) return;
+
+    const items = timeline.querySelectorAll('.timeline-item');
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      },
+      {
+        threshold: 0.2,
+        rootMargin: '0px 0px -50px 0px',
+      }
+    );
+
+    items.forEach((item) => observer.observe(item));
+  });
+</script>

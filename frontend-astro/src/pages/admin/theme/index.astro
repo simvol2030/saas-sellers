@@ -1,0 +1,23 @@
+---
+/**
+ * Admin Theme Editor
+ *
+ * Настройка цветов, шрифтов и отступов
+ */
+import Admin from '../../../layouts/Admin.astro';
+import ThemeEditor from '../../../components/admin/ThemeEditor.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Дизайн-система">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <ThemeEditor client:load />
+</Admin>

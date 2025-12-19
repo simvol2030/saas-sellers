@@ -1,0 +1,21 @@
+---
+/**
+ * Create New Page
+ */
+import Admin from '../../../layouts/Admin.astro';
+import PageEditor from '../../../components/admin/PageEditor.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Новая страница">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <PageEditor client:load />
+</Admin>

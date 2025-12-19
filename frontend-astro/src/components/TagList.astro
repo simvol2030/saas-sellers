@@ -1,0 +1,49 @@
+---
+/**
+ * TagList Component - список тегов
+ */
+interface Props {
+  tags: string[];
+  linked?: boolean;
+}
+
+const { tags, linked = true } = Astro.props;
+---
+
+<div class="tag-list">
+  {tags.map((tag) => (
+    linked ? (
+      <a href={`/blog/tag/${tag}`} class="tag">
+        #{tag}
+      </a>
+    ) : (
+      <span class="tag">#{tag}</span>
+    )
+  ))}
+</div>
+
+<style>
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .tag {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  a.tag:hover {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+  }
+</style>

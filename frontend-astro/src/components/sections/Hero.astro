@@ -1,0 +1,337 @@
+---
+/**
+ * Hero Section - главный баннер
+ *
+ * Features:
+ * - Фоновое изображение или видео
+ * - Overlay с настраиваемой прозрачностью
+ * - Заголовок, подзаголовок, описание
+ * - Primary и Secondary CTA кнопки
+ * - Выравнивание контента (left/center/right)
+ * - Настраиваемая высота
+ */
+
+import type { HeroSection } from '../../lib/parser';
+
+interface Props extends Omit<HeroSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  subtitle,
+  description,
+  backgroundImage,
+  backgroundVideo,
+  overlay = true,
+  overlayOpacity = 0.5,
+  ctaText,
+  ctaHref,
+  ctaSecondaryText,
+  ctaSecondaryHref,
+  align = 'center',
+  height = 'large',
+} = Astro.props;
+
+const heightClasses = {
+  full: 'hero-full',
+  large: 'hero-large',
+  medium: 'hero-medium',
+  small: 'hero-small',
+};
+
+const alignClasses = {
+  left: 'hero-align-left',
+  center: 'hero-align-center',
+  right: 'hero-align-right',
+};
+---
+
+<section
+  id={id}
+  class:list={[
+    'hero',
+    heightClasses[height],
+    alignClasses[align],
+    className,
+  ]}
+>
+  {/* Background */}
+  <div class="hero-background">
+    {backgroundVideo ? (
+      <video
+        class="hero-video"
+        autoplay
+        muted
+        loop
+        playsinline
+        poster={backgroundImage}
+      >
+        <source src={backgroundVideo} type="video/mp4" />
+      </video>
+    ) : backgroundImage ? (
+      <img
+        class="hero-image"
+        src={backgroundImage}
+        alt=""
+        loading="eager"
+      />
+    ) : null}
+
+    {/* Overlay */}
+    {overlay && (
+      <div
+        class="hero-overlay"
+        style={`--overlay-opacity: ${overlayOpacity}`}
+      />
+    )}
+  </div>
+
+  {/* Content */}
+  <div class="hero-content container">
+    <div class="hero-inner">
+      {subtitle && (
+        <p class="hero-subtitle">{subtitle}</p>
+      )}
+
+      <h1 class="hero-title">{title}</h1>
+
+      {description && (
+        <p class="hero-description">{description}</p>
+      )}
+
+      {(ctaText || ctaSecondaryText) && (
+        <div class="hero-actions">
+          {ctaText && ctaHref && (
+            <a href={ctaHref} class="btn btn-primary btn-lg hero-cta">
+              {ctaText}
+            </a>
+          )}
+          {ctaSecondaryText && ctaSecondaryHref && (
+            <a href={ctaSecondaryHref} class="btn btn-secondary btn-lg hero-cta-secondary">
+              {ctaSecondaryText}
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+
+  {/* Scroll indicator */}
+  <div class="hero-scroll-indicator" aria-hidden="true">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 5v14M19 12l-7 7-7-7"/>
+    </svg>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  /* Heights */
+  .hero-full {
+    min-height: 100vh;
+  }
+
+  .hero-large {
+    min-height: 80vh;
+  }
+
+  .hero-medium {
+    min-height: 60vh;
+  }
+
+  .hero-small {
+    min-height: 40vh;
+  }
+
+  /* Background */
+  .hero-background {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .hero-image,
+  .hero-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(15, 23, 42, var(--overlay-opacity, 0.5)) 0%,
+      rgba(30, 64, 175, calc(var(--overlay-opacity, 0.5) * 0.8)) 100%
+    );
+  }
+
+  /* Content */
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    padding: var(--spacing-16) var(--spacing-4);
+    width: 100%;
+  }
+
+  .hero-inner {
+    max-width: 800px;
+  }
+
+  /* Alignment */
+  .hero-align-center .hero-inner {
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .hero-align-left .hero-inner {
+    margin-right: auto;
+    text-align: left;
+  }
+
+  .hero-align-right .hero-inner {
+    margin-left: auto;
+    text-align: right;
+  }
+
+  /* Typography */
+  .hero-subtitle {
+    display: inline-block;
+    padding: var(--spacing-2) var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--font-letter-spacing-wide);
+    color: var(--color-primary-light);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+    backdrop-filter: blur(4px);
+  }
+
+  .hero-title {
+    margin-bottom: var(--spacing-6);
+    font-size: var(--font-font-size-4xl);
+    font-weight: var(--font-font-weight-bold);
+    line-height: var(--font-line-height-tight);
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  @media (min-width: 768px) {
+    .hero-title {
+      font-size: var(--font-font-size-5xl);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .hero-title {
+      font-size: var(--font-font-size-6xl);
+    }
+  }
+
+  .hero-description {
+    margin-bottom: var(--spacing-8);
+    font-size: var(--font-font-size-lg);
+    line-height: var(--font-line-height-relaxed);
+    color: rgba(255, 255, 255, 0.9);
+    max-width: 600px;
+  }
+
+  .hero-align-center .hero-description {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media (min-width: 768px) {
+    .hero-description {
+      font-size: var(--font-font-size-xl);
+    }
+  }
+
+  /* Actions */
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+  }
+
+  .hero-align-center .hero-actions {
+    justify-content: center;
+  }
+
+  .hero-align-right .hero-actions {
+    justify-content: flex-end;
+  }
+
+  .hero-cta {
+    background: white;
+    color: var(--color-primary);
+    border-color: white;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .hero-cta:hover {
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .hero-cta-secondary {
+    background: transparent;
+    color: white;
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+
+  .hero-cta-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: white;
+  }
+
+  /* Scroll indicator */
+  .hero-scroll-indicator {
+    position: absolute;
+    bottom: var(--spacing-8);
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.7);
+    animation: bounce 2s infinite;
+    z-index: 1;
+  }
+
+  @keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+      transform: translateX(-50%) translateY(0);
+    }
+    40% {
+      transform: translateX(-50%) translateY(-10px);
+    }
+    60% {
+      transform: translateX(-50%) translateY(-5px);
+    }
+  }
+
+  /* No background fallback */
+  .hero:not(:has(.hero-image)):not(:has(.hero-video)) {
+    background: linear-gradient(
+      135deg,
+      var(--color-primary) 0%,
+      var(--color-primary-dark) 100%
+    );
+  }
+
+  .hero:not(:has(.hero-image)):not(:has(.hero-video)) .hero-overlay {
+    display: none;
+  }
+</style>

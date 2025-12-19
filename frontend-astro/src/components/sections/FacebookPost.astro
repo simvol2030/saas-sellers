@@ -1,0 +1,352 @@
+---
+/**
+ * FacebookPost Section - пост Facebook-style
+ *
+ * Features:
+ * - Стиль поста Facebook
+ * - Автор с аватаром и верификацией
+ * - Дата публикации
+ * - Контент с изображением
+ * - Лайки, комментарии, шеры
+ * - Ссылка на оригинал
+ */
+
+import type { FacebookPostSection } from '../../lib/parser';
+
+interface Props extends Omit<FacebookPostSection, 'type'> {}
+
+const {
+  id,
+  className,
+  author,
+  date,
+  content,
+  image,
+  likes = 0,
+  comments = 0,
+  shares = 0,
+  link,
+} = Astro.props;
+
+function formatNumber(num: number): string {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'K';
+  }
+  return num.toString();
+}
+---
+
+<section
+  id={id}
+  class:list={['facebook-post section', className]}
+>
+  <div class="container">
+    <article class="facebook-card">
+      <!-- Header -->
+      <header class="facebook-header">
+        <div class="facebook-author">
+          {author.avatar ? (
+            <img
+              src={author.avatar}
+              alt={author.name}
+              class="facebook-avatar"
+            />
+          ) : (
+            <div class="facebook-avatar-placeholder">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+          )}
+          <div class="facebook-author-info">
+            <span class="facebook-author-name">
+              {author.name}
+              {author.verified && (
+                <svg class="facebook-verified" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              )}
+            </span>
+            <time class="facebook-date">{date}</time>
+          </div>
+        </div>
+
+        {link && (
+          <a
+            href={link}
+            class="facebook-external-link"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Открыть пост"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </a>
+        )}
+      </header>
+
+      <!-- Content -->
+      <div class="facebook-content">
+        <p>{content}</p>
+      </div>
+
+      <!-- Image -->
+      {image && (
+        <div class="facebook-image-wrapper">
+          <img
+            src={image}
+            alt="Post image"
+            class="facebook-image"
+            loading="lazy"
+          />
+        </div>
+      )}
+
+      <!-- Stats -->
+      <div class="facebook-stats">
+        {likes > 0 && (
+          <div class="facebook-reactions">
+            <span class="facebook-reaction facebook-reaction-like">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/>
+              </svg>
+            </span>
+            <span class="facebook-stat-count">{formatNumber(likes)}</span>
+          </div>
+        )}
+
+        <div class="facebook-engagement">
+          {comments > 0 && (
+            <span class="facebook-stat">
+              {formatNumber(comments)} комментариев
+            </span>
+          )}
+          {shares > 0 && (
+            <span class="facebook-stat">
+              {formatNumber(shares)} репостов
+            </span>
+          )}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="facebook-actions">
+        <button type="button" class="facebook-action">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/>
+          </svg>
+          <span>Нравится</span>
+        </button>
+
+        <button type="button" class="facebook-action">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span>Комментировать</span>
+        </button>
+
+        <button type="button" class="facebook-action">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"/>
+            <circle cx="6" cy="12" r="3"/>
+            <circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          <span>Поделиться</span>
+        </button>
+      </div>
+    </article>
+  </div>
+</section>
+
+<style>
+  .facebook-card {
+    max-width: 600px;
+    margin-inline: auto;
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Header */
+  .facebook-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: var(--spacing-4);
+  }
+
+  .facebook-author {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+  }
+
+  .facebook-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    object-fit: cover;
+  }
+
+  .facebook-avatar-placeholder {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    background: var(--color-background-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+  }
+
+  .facebook-author-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .facebook-author-name {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    font-weight: var(--font-font-weight-semibold);
+    color: var(--color-text);
+  }
+
+  .facebook-verified {
+    color: #1877f2;
+  }
+
+  .facebook-date {
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-muted);
+  }
+
+  .facebook-external-link {
+    padding: var(--spacing-2);
+    color: var(--color-text-muted);
+    border-radius: var(--radius-full);
+    transition: all var(--transition-fast);
+  }
+
+  .facebook-external-link:hover {
+    background: var(--color-background-secondary);
+    color: var(--color-text);
+  }
+
+  /* Content */
+  .facebook-content {
+    padding: 0 var(--spacing-4) var(--spacing-4);
+  }
+
+  .facebook-content p {
+    margin: 0;
+    font-size: var(--font-font-size-base);
+    line-height: var(--font-line-height-relaxed);
+    color: var(--color-text);
+    white-space: pre-wrap;
+  }
+
+  /* Image */
+  .facebook-image-wrapper {
+    width: 100%;
+    background: var(--color-background-secondary);
+  }
+
+  .facebook-image {
+    width: 100%;
+    display: block;
+  }
+
+  /* Stats */
+  .facebook-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .facebook-reactions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+
+  .facebook-reaction {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-full);
+  }
+
+  .facebook-reaction-like {
+    background: #1877f2;
+    color: white;
+  }
+
+  .facebook-stat-count {
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .facebook-engagement {
+    display: flex;
+    gap: var(--spacing-4);
+  }
+
+  .facebook-stat {
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-secondary);
+  }
+
+  /* Actions */
+  .facebook-actions {
+    display: flex;
+    padding: var(--spacing-2) var(--spacing-4);
+  }
+
+  .facebook-action {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3);
+    background: none;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-medium);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+
+  .facebook-action:hover {
+    background: var(--color-background-secondary);
+  }
+
+  .facebook-action:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: -2px;
+  }
+
+  @media (max-width: 480px) {
+    .facebook-action span {
+      display: none;
+    }
+  }
+</style>

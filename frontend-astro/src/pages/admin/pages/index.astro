@@ -1,0 +1,23 @@
+---
+/**
+ * Admin Pages List
+ *
+ * CRUD управление страницами лендингов
+ */
+import Admin from '../../../layouts/Admin.astro';
+import PagesList from '../../../components/admin/PagesList.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Страницы">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <PagesList client:load />
+</Admin>

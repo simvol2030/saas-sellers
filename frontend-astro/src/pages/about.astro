@@ -1,0 +1,151 @@
+---
+/**
+ * About Page - страница о проекте
+ */
+export const prerender = true;
+
+import Base from '../layouts/Base.astro';
+import { getMdPage } from '../lib/content';
+
+const page = await getMdPage('about');
+let Content: any = null;
+
+if (page) {
+  const rendered = await page.render();
+  Content = rendered.Content;
+}
+---
+
+<Base
+  title="О проекте"
+  description="Информация о контентной платформе"
+>
+  <article class="about-page">
+    <header class="about-header">
+      <div class="container container-narrow">
+        <h1 class="page-title">О проекте</h1>
+      </div>
+    </header>
+
+    <div class="about-content container container-narrow">
+      {Content ? (
+        <div class="prose">
+          <Content />
+        </div>
+      ) : (
+        <div class="prose">
+          <h2>О нас</h2>
+          <p>
+            Это универсальная контентная платформа, построенная на современном стеке технологий:
+          </p>
+          <ul>
+            <li><strong>Frontend:</strong> Astro 5.x</li>
+            <li><strong>Backend:</strong> Hono 4.x</li>
+            <li><strong>Database:</strong> SQLite / PostgreSQL</li>
+            <li><strong>ORM:</strong> Prisma 6.x</li>
+          </ul>
+
+          <h2>Возможности</h2>
+
+          <h3>Markdown контент</h3>
+          <p>Пишите статьи в удобном формате Markdown с поддержкой:</p>
+          <ul>
+            <li>Заголовков и форматирования</li>
+            <li>Блоков кода с подсветкой синтаксиса</li>
+            <li>Изображений и медиа</li>
+            <li>Таблиц и списков</li>
+          </ul>
+
+          <h3>База данных</h3>
+          <p>Храните структурированные данные:</p>
+          <ul>
+            <li>Пользователи и авторы</li>
+            <li>Категории и теги</li>
+            <li>Комментарии</li>
+            <li>Медиа файлы</li>
+          </ul>
+
+          <h3>SEO оптимизация</h3>
+          <ul>
+            <li>Meta теги</li>
+            <li>Open Graph</li>
+            <li>Structured Data</li>
+            <li>Sitemap</li>
+          </ul>
+
+          <h2>Контакты</h2>
+          <p>
+            GitHub: <a href="https://github.com" target="_blank" rel="noopener">repository-url</a>
+          </p>
+        </div>
+      )}
+    </div>
+  </article>
+</Base>
+
+<style>
+  .about-page {
+    min-height: 100vh;
+  }
+
+  .about-header {
+    padding: var(--space-12) 0;
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+    text-align: center;
+  }
+
+  .page-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+  }
+
+  .about-content {
+    padding: var(--space-12) var(--space-4);
+  }
+
+  /* Prose styles */
+  .prose {
+    font-size: 1.125rem;
+    line-height: 1.75;
+  }
+
+  .prose :global(h2) {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-top: var(--space-12);
+    margin-bottom: var(--space-4);
+  }
+
+  .prose :global(h2:first-child) {
+    margin-top: 0;
+  }
+
+  .prose :global(h3) {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: var(--space-8);
+    margin-bottom: var(--space-3);
+  }
+
+  .prose :global(p) {
+    margin-bottom: var(--space-4);
+  }
+
+  .prose :global(ul) {
+    margin-bottom: var(--space-4);
+    padding-left: var(--space-6);
+  }
+
+  .prose :global(li) {
+    margin-bottom: var(--space-2);
+  }
+
+  .prose :global(a) {
+    color: var(--color-primary);
+  }
+
+  .prose :global(strong) {
+    font-weight: 600;
+  }
+</style>

@@ -1,0 +1,373 @@
+---
+/**
+ * Longread Section - длинная статья с TOC
+ *
+ * Features:
+ * - Markdown-like контент
+ * - Автоматический TOC из заголовков
+ * - Sticky navigation
+ * - Прогресс чтения
+ * - Плавный скролл
+ */
+
+import type { LongreadSection } from '../../lib/parser';
+
+interface Props extends Omit<LongreadSection, 'type'> {}
+
+const {
+  id,
+  className,
+  content,
+  showToc = true,
+  tocTitle = 'Содержание',
+} = Astro.props;
+
+const longreadId = id || `longread-${Math.random().toString(36).substr(2, 9)}`;
+
+// Parse headings from content for TOC
+// Content format: ## Heading or ### Subheading
+const headingRegex = /^(#{2,3})\s+(.+)$/gm;
+const headings: Array<{ level: number; text: string; id: string }> = [];
+let match;
+
+while ((match = headingRegex.exec(content)) !== null) {
+  const level = match[1].length;
+  const text = match[2].trim();
+  const headingId = text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-');
+  headings.push({ level, text, id: headingId });
+}
+
+// Simple markdown-like processing
+function processContent(text: string): string {
+  return text
+    // Headers with IDs
+    .replace(/^### (.+)$/gm, (_, heading) => {
+      const headingId = heading.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+      return `<h3 id="${headingId}">${heading}</h3>`;
+    })
+    .replace(/^## (.+)$/gm, (_, heading) => {
+      const headingId = heading.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+      return `<h2 id="${headingId}">${heading}</h2>`;
+    })
+    // Bold and italic
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Links
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    // Line breaks to paragraphs
+    .split('\n\n')
+    .map(p => {
+      const trimmed = p.trim();
+      if (!trimmed) return '';
+      if (trimmed.startsWith('<h')) return trimmed;
+      if (trimmed.startsWith('-')) {
+        const items = trimmed.split('\n').map(item =>
+          `<li>${item.replace(/^-\s*/, '')}</li>`
+        ).join('');
+        return `<ul>${items}</ul>`;
+      }
+      return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+const processedContent = processContent(content);
+---
+
+<section
+  id={id}
+  class:list={['longread section', className]}
+  data-longread={longreadId}
+>
+  <div class="container">
+    <div class="longread-layout">
+      {showToc && headings.length > 0 && (
+        <aside class="longread-sidebar">
+          <nav class="longread-toc" aria-label="Table of contents">
+            <h2 class="toc-title">{tocTitle}</h2>
+            <ul class="toc-list">
+              {headings.map((heading) => (
+                <li class:list={['toc-item', `toc-level-${heading.level}`]}>
+                  <a href={`#${heading.id}`} class="toc-link" data-heading-id={heading.id}>
+                    {heading.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <div class="reading-progress-container" aria-hidden="true">
+            <div class="reading-progress-bar"></div>
+          </div>
+        </aside>
+      )}
+
+      <article class="longread-content" set:html={processedContent} />
+    </div>
+  </div>
+</section>
+
+<style>
+  .longread-layout {
+    display: grid;
+    gap: var(--spacing-8);
+  }
+
+  @media (min-width: 1024px) {
+    .longread-layout {
+      grid-template-columns: 280px 1fr;
+      gap: var(--spacing-12);
+    }
+  }
+
+  /* Sidebar */
+  .longread-sidebar {
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .longread-sidebar {
+      display: block;
+      position: relative;
+    }
+  }
+
+  .longread-toc {
+    position: sticky;
+    top: var(--spacing-8);
+    padding: var(--spacing-5);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .toc-title {
+    margin: 0 0 var(--spacing-4);
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .toc-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .toc-item {
+    margin-bottom: var(--spacing-1);
+  }
+
+  .toc-level-3 {
+    padding-left: var(--spacing-4);
+  }
+
+  .toc-link {
+    display: block;
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    border-left: 2px solid transparent;
+    transition: all var(--transition-fast);
+  }
+
+  .toc-link:hover {
+    color: var(--color-text);
+    background: var(--color-background-secondary);
+  }
+
+  .toc-link.active {
+    color: var(--color-primary);
+    border-left-color: var(--color-primary);
+    background: var(--color-primary-light);
+  }
+
+  /* Reading progress */
+  .reading-progress-container {
+    position: sticky;
+    top: calc(var(--spacing-8) + 300px);
+    margin-top: var(--spacing-6);
+    width: 4px;
+    height: 100px;
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+    margin-left: var(--spacing-6);
+  }
+
+  .reading-progress-bar {
+    width: 100%;
+    height: 0%;
+    background: var(--color-primary);
+    border-radius: var(--radius-full);
+    transition: height 0.1s ease;
+  }
+
+  /* Content */
+  .longread-content {
+    max-width: 720px;
+    font-size: var(--font-font-size-lg);
+    line-height: var(--font-line-height-relaxed);
+    color: var(--color-text);
+  }
+
+  .longread-content :global(h2) {
+    margin: var(--spacing-12) 0 var(--spacing-6);
+    font-size: var(--font-font-size-2xl);
+    font-weight: var(--font-font-weight-bold);
+    color: var(--color-text);
+    scroll-margin-top: var(--spacing-8);
+  }
+
+  .longread-content :global(h2:first-child) {
+    margin-top: 0;
+  }
+
+  .longread-content :global(h3) {
+    margin: var(--spacing-8) 0 var(--spacing-4);
+    font-size: var(--font-font-size-xl);
+    font-weight: var(--font-font-weight-semibold);
+    color: var(--color-text);
+    scroll-margin-top: var(--spacing-8);
+  }
+
+  .longread-content :global(p) {
+    margin: 0 0 var(--spacing-6);
+  }
+
+  .longread-content :global(strong) {
+    font-weight: var(--font-font-weight-semibold);
+    color: var(--color-text);
+  }
+
+  .longread-content :global(em) {
+    font-style: italic;
+  }
+
+  .longread-content :global(a) {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color var(--transition-fast);
+  }
+
+  .longread-content :global(a:hover) {
+    color: var(--color-primary-dark);
+  }
+
+  .longread-content :global(ul) {
+    margin: 0 0 var(--spacing-6);
+    padding-left: var(--spacing-6);
+    list-style: disc;
+  }
+
+  .longread-content :global(li) {
+    margin-bottom: var(--spacing-2);
+  }
+
+  .longread-content :global(blockquote) {
+    margin: var(--spacing-6) 0;
+    padding: var(--spacing-4) var(--spacing-6);
+    border-left: 4px solid var(--color-primary);
+    background: var(--color-background-secondary);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    font-style: italic;
+    color: var(--color-text-secondary);
+  }
+
+  /* Mobile TOC */
+  @media (max-width: 1023px) {
+    .longread-content {
+      max-width: 100%;
+    }
+  }
+</style>
+
+<script define:vars={{ longreadId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const section = document.querySelector(`[data-longread="${longreadId}"]`);
+    if (!section) return;
+
+    const tocLinks = section.querySelectorAll('.toc-link');
+    const progressBar = section.querySelector('.reading-progress-bar');
+    const content = section.querySelector('.longread-content');
+
+    if (!content) return;
+
+    // Smooth scroll for TOC links
+    tocLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = link.getAttribute('href').slice(1);
+        const target = document.getElementById(targetId);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // Active TOC item on scroll
+    const headings = content.querySelectorAll('h2, h3');
+
+    function updateActiveHeading() {
+      let currentActive = null;
+      const scrollY = window.scrollY;
+      const offset = 100;
+
+      headings.forEach(heading => {
+        const rect = heading.getBoundingClientRect();
+        if (rect.top <= offset) {
+          currentActive = heading.id;
+        }
+      });
+
+      tocLinks.forEach(link => {
+        const headingId = link.dataset.headingId;
+        if (headingId === currentActive) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    }
+
+    // Reading progress
+    function updateProgress() {
+      if (!progressBar) return;
+
+      const contentRect = content.getBoundingClientRect();
+      const contentTop = contentRect.top + window.scrollY;
+      const contentHeight = contentRect.height;
+      const viewportHeight = window.innerHeight;
+
+      const scrolled = window.scrollY - contentTop + viewportHeight * 0.5;
+      const progress = Math.max(0, Math.min(100, (scrolled / contentHeight) * 100));
+
+      progressBar.style.height = `${progress}%`;
+    }
+
+    // Throttled scroll handler
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          updateActiveHeading();
+          updateProgress();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+
+    // Initial update
+    updateActiveHeading();
+    updateProgress();
+  });
+</script>

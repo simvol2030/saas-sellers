@@ -1,0 +1,29 @@
+---
+/**
+ * Edit Section Page
+ */
+import Admin from '../../../../../layouts/Admin.astro';
+import SectionEditor from '../../../../../components/admin/SectionEditor.svelte';
+
+export const prerender = false;
+
+const { id, index } = Astro.params;
+const pageId = parseInt(id || '0', 10);
+const sectionIndex = parseInt(index || '0', 10);
+
+if (isNaN(pageId) || pageId <= 0 || isNaN(sectionIndex) || sectionIndex < 0) {
+  return Astro.redirect('/admin/pages');
+}
+---
+
+<Admin title="Редактирование секции">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <SectionEditor pageId={pageId} sectionIndex={sectionIndex} client:load />
+</Admin>

@@ -1,0 +1,444 @@
+---
+/**
+ * MediaMix Section - Instagram-style (фото + видео + текст expand)
+ *
+ * Features:
+ * - Сетка медиа элементов (фото/видео)
+ * - Краткий caption + расширенный контент
+ * - Hover эффекты
+ * - Lightbox для просмотра
+ * - Video play on hover
+ * - Адаптивная сетка
+ */
+
+import type { MediaMixSection } from '../../lib/parser';
+
+interface Props extends Omit<MediaMixSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  items,
+} = Astro.props;
+
+const mixId = id || `mediamix-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<section
+  id={id}
+  class:list={['media-mix section', className]}
+>
+  <div class="container">
+    {title && (
+      <h2 class="media-mix-title">{title}</h2>
+    )}
+
+    <div class="media-mix-grid" data-mediamix={mixId}>
+      {items.map((item, index) => (
+        <div
+          class="media-mix-item"
+          data-type={item.type}
+          data-index={index}
+        >
+          <div class="media-mix-media">
+            {item.type === 'image' ? (
+              <img
+                src={item.src}
+                alt={item.caption || ''}
+                class="media-mix-image"
+                loading="lazy"
+              />
+            ) : (
+              <video
+                class="media-mix-video"
+                src={item.src}
+                poster={item.poster}
+                muted
+                loop
+                playsinline
+                preload="metadata"
+              />
+            )}
+
+            {/* Overlay */}
+            <div class="media-mix-overlay">
+              {item.type === 'video' && (
+                <div class="media-mix-video-indicator">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </div>
+              )}
+
+              {item.expandedContent && (
+                <button
+                  type="button"
+                  class="media-mix-expand-btn"
+                  aria-label="Развернуть"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Caption */}
+          {item.caption && (
+            <div class="media-mix-caption">
+              <p class="media-mix-caption-text">{item.caption}</p>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <!-- Expanded view modal -->
+  <div
+    class="media-mix-modal"
+    id={`modal-${mixId}`}
+    role="dialog"
+    aria-modal="true"
+    hidden
+  >
+    <div class="media-mix-modal-backdrop"></div>
+    <div class="media-mix-modal-content">
+      <button
+        type="button"
+        class="media-mix-modal-close"
+        aria-label="Закрыть"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+
+      <div class="media-mix-modal-media"></div>
+      <div class="media-mix-modal-text">
+        <p class="media-mix-modal-caption"></p>
+        <div class="media-mix-modal-expanded"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .media-mix-title {
+    margin: 0 0 var(--spacing-8);
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    text-align: center;
+    color: var(--color-text);
+  }
+
+  .media-mix-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-4);
+  }
+
+  @media (min-width: 768px) {
+    .media-mix-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .media-mix-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* Media item */
+  .media-mix-item {
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--color-background-secondary);
+  }
+
+  .media-mix-media {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .media-mix-image,
+  .media-mix-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-normal);
+  }
+
+  .media-mix-item:hover .media-mix-image,
+  .media-mix-item:hover .media-mix-video {
+    transform: scale(1.05);
+  }
+
+  /* Overlay */
+  .media-mix-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.5) 0%,
+      transparent 50%
+    );
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: var(--spacing-3);
+  }
+
+  .media-mix-item:hover .media-mix-overlay {
+    opacity: 1;
+  }
+
+  .media-mix-video-indicator {
+    color: white;
+    padding: var(--spacing-2);
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: var(--radius-full);
+  }
+
+  .media-mix-expand-btn {
+    padding: var(--spacing-2);
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    margin-left: auto;
+  }
+
+  .media-mix-expand-btn:hover {
+    background: white;
+  }
+
+  .media-mix-expand-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  /* Caption */
+  .media-mix-caption {
+    padding: var(--spacing-3);
+  }
+
+  .media-mix-caption-text {
+    margin: 0;
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-secondary);
+    line-height: var(--font-line-height-normal);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Modal */
+  .media-mix-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-4);
+  }
+
+  .media-mix-modal[hidden] {
+    display: none;
+  }
+
+  .media-mix-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.95);
+  }
+
+  .media-mix-modal-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-width: 900px;
+    max-height: 90vh;
+    width: 100%;
+    background: var(--color-background);
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+  }
+
+  @media (min-width: 768px) {
+    .media-mix-modal-content {
+      flex-direction: row;
+    }
+  }
+
+  .media-mix-modal-close {
+    position: absolute;
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    padding: var(--spacing-2);
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    border-radius: var(--radius-full);
+    color: white;
+    cursor: pointer;
+    z-index: 10;
+    transition: background var(--transition-fast);
+  }
+
+  .media-mix-modal-close:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  .media-mix-modal-media {
+    flex: 1;
+    min-height: 300px;
+    background: #000;
+  }
+
+  @media (min-width: 768px) {
+    .media-mix-modal-media {
+      flex: 1.5;
+    }
+  }
+
+  .media-mix-modal-media :global(img),
+  .media-mix-modal-media :global(video) {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .media-mix-modal-text {
+    flex: 1;
+    padding: var(--spacing-6);
+    overflow-y: auto;
+  }
+
+  .media-mix-modal-caption {
+    margin: 0 0 var(--spacing-4);
+    font-size: var(--font-font-size-lg);
+    font-weight: var(--font-font-weight-medium);
+    color: var(--color-text);
+  }
+
+  .media-mix-modal-expanded {
+    color: var(--color-text-secondary);
+    line-height: var(--font-line-height-relaxed);
+  }
+
+  .media-mix-modal-expanded :global(p) {
+    margin-bottom: var(--spacing-4);
+  }
+
+  .media-mix-modal-expanded :global(p:last-child) {
+    margin-bottom: 0;
+  }
+</style>
+
+<script define:vars={{ mixId, items }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.querySelector(`[data-mediamix="${mixId}"]`);
+    const modal = document.getElementById(`modal-${mixId}`);
+
+    if (!grid || !modal) return;
+
+    const modalMedia = modal.querySelector('.media-mix-modal-media');
+    const modalCaption = modal.querySelector('.media-mix-modal-caption');
+    const modalExpanded = modal.querySelector('.media-mix-modal-expanded');
+    const closeBtn = modal.querySelector('.media-mix-modal-close');
+    const backdrop = modal.querySelector('.media-mix-modal-backdrop');
+
+    const mediaItems = grid.querySelectorAll('.media-mix-item');
+
+    // Video hover play
+    mediaItems.forEach((item) => {
+      const video = item.querySelector('.media-mix-video');
+      if (video) {
+        item.addEventListener('mouseenter', () => {
+          video.play().catch(() => {});
+        });
+        item.addEventListener('mouseleave', () => {
+          video.pause();
+          video.currentTime = 0;
+        });
+      }
+    });
+
+    // Open modal
+    function openModal(index) {
+      const itemData = items[index];
+      if (!itemData) return;
+
+      // Set media
+      modalMedia.innerHTML = '';
+      if (itemData.type === 'image') {
+        const img = document.createElement('img');
+        img.src = itemData.src;
+        img.alt = itemData.caption || '';
+        modalMedia.appendChild(img);
+      } else {
+        const video = document.createElement('video');
+        video.src = itemData.src;
+        if (itemData.poster) video.poster = itemData.poster;
+        video.controls = true;
+        video.autoplay = true;
+        modalMedia.appendChild(video);
+      }
+
+      // Set text
+      modalCaption.textContent = itemData.caption || '';
+      modalExpanded.innerHTML = itemData.expandedContent || '';
+
+      modal.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      modal.hidden = true;
+      document.body.style.overflow = '';
+
+      // Stop video if playing
+      const video = modalMedia.querySelector('video');
+      if (video) video.pause();
+    }
+
+    // Event listeners
+    mediaItems.forEach((item, index) => {
+      const expandBtn = item.querySelector('.media-mix-expand-btn');
+      const media = item.querySelector('.media-mix-media');
+
+      if (expandBtn) {
+        expandBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openModal(index);
+        });
+      }
+
+      // Click on media opens modal if has expanded content
+      if (items[index]?.expandedContent) {
+        media.addEventListener('click', () => openModal(index));
+      }
+    });
+
+    closeBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', closeModal);
+
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+      if (!modal.hidden && e.key === 'Escape') {
+        closeModal();
+      }
+    });
+  });
+</script>
