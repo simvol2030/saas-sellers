@@ -6,6 +6,7 @@
    * Features: pagination, search, filters, bulk actions
    */
 
+  import { onMount } from 'svelte';
   import { apiFetch } from '../../lib/api';
 
   interface Page {
@@ -176,7 +177,7 @@
   }
 
   // Initial load
-  $effect(() => {
+  onMount(() => {
     loadPages();
   });
 </script>
