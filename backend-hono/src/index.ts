@@ -74,6 +74,9 @@ app.get('/health', async (c) => {
 
 // Routes
 app.route('/api/auth', auth);
+// Phase 2: Export/Import - MUST be before /api/admin/pages to avoid route conflict
+// (/pages/import and /pages/export-all would match /:id in pages.ts)
+app.route('/api/admin', exportImport);
 app.route('/api/admin/pages', adminPages);
 app.route('/api/pages', publicPages);
 app.route('/api/media', media);
@@ -86,8 +89,6 @@ app.route('/api/admin/media/folders', mediaFolders);
 app.route('/api/admin/blocks', blocks);
 app.route('/api/admin/menus', menus);
 app.route('/api/menus', menus); // Public menu access
-// Phase 2: Export/Import
-app.route('/api/admin', exportImport);
 
 // Error handler (must be last)
 app.onError(errorHandler);
