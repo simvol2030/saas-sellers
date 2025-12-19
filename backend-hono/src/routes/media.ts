@@ -1,23 +1,30 @@
+/**
+ * Media API - File uploads and management
+ *
+ * CRUD operations for media files with multisite support.
+ * Files are stored in site-specific directories and tracked in database.
+ *
+ * Endpoints:
+ * GET    /api/admin/media         - List media files
+ * POST   /api/admin/media/upload  - Upload file
+ * GET    /api/admin/media/:id     - Get media info
+ * PUT    /api/admin/media/:id     - Update media metadata
+ * DELETE /api/admin/media/:id     - Delete media file
+ * GET    /api/media/:type/:filename - Serve file (public)
+ */
+
 import { Hono } from 'hono';
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'fs';
+import { createReadStream, createWriteStream, existsSync, mkdirSync, unlinkSync, statSync } from 'fs';
 import { join, extname, basename } from 'path';
 import { randomUUID } from 'crypto';
 import { Readable } from 'stream';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
+import { siteMiddleware, requireSite, publicSiteMiddleware } from '../middleware/site.js';
 
 const media = new Hono();
-
-// Apply auth to upload and delete routes (read routes are public for serving media)
-// Listing also requires auth to prevent enumeration
-media.use('/upload', authMiddleware);
-media.use('/upload', editorOrAdmin);
-media.delete('/*', authMiddleware);
-media.delete('/*', editorOrAdmin);
-// List route requires auth
-media.get('/', authMiddleware);
-media.get('/', editorOrAdmin);
 
 // ===========================================
 // CONFIGURATION
@@ -36,21 +43,19 @@ const typeToDir: Record<string, string> = {
   document: 'documents',
 };
 
-// Ensure directories exist
-function ensureDirectories() {
+// ===========================================
+// HELPER FUNCTIONS
+// ===========================================
+
+function ensureSiteDirectories(siteId: number) {
+  const siteDir = join(MEDIA_DIR, `site-${siteId}`);
   Object.values(typeToDir).forEach(dir => {
-    const fullPath = join(MEDIA_DIR, dir);
+    const fullPath = join(siteDir, dir);
     if (!existsSync(fullPath)) {
       mkdirSync(fullPath, { recursive: true });
     }
   });
 }
-
-ensureDirectories();
-
-// ===========================================
-// HELPER FUNCTIONS
-// ===========================================
 
 function getMediaType(mimeType: string): 'image' | 'video' | 'document' | null {
   if (ALLOWED_IMAGE_TYPES.includes(mimeType)) return 'image';
@@ -81,7 +86,6 @@ function generateFilename(originalName: string): string {
   const ext = extname(originalName);
   const uuid = randomUUID().split('-')[0];
   const timestamp = Date.now();
-  // Sanitize original name
   const baseName = basename(originalName, ext)
     .replace(/[^a-zA-Z0-9-_]/g, '-')
     .toLowerCase()
@@ -89,73 +93,340 @@ function generateFilename(originalName: string): string {
   return `${baseName}-${timestamp}-${uuid}${ext}`;
 }
 
-interface MediaFile {
-  name: string;
-  path: string;
-  url: string;
-  type: 'image' | 'video' | 'document';
-  size: number;
-  mimeType: string;
-  createdAt: string;
-}
-
-function getFileInfo(dir: string, filename: string): MediaFile | null {
-  const fullPath = join(MEDIA_DIR, dir, filename);
-  if (!existsSync(fullPath)) return null;
-
-  const stat = statSync(fullPath);
-  const ext = extname(filename);
-
-  return {
-    name: filename,
-    path: `/${dir}/${filename}`,
-    url: `/api/media/${dir}/${filename}`,
-    type: dir === 'images' ? 'image' : dir === 'videos' ? 'video' : 'document',
-    size: stat.size,
-    mimeType: getMimeType(ext),
-    createdAt: stat.birthtime.toISOString(),
-  };
-}
-
 // ===========================================
-// ROUTES
+// VALIDATION SCHEMAS
 // ===========================================
 
-// GET /api/media - List all media files
-media.get('/', async (c) => {
-  try {
-    const typeFilter = c.req.query('type') as 'image' | 'video' | 'document' | undefined;
-    const files: MediaFile[] = [];
-
-    const dirsToScan = typeFilter ? [typeToDir[typeFilter]] : Object.values(typeToDir);
-
-    for (const dir of dirsToScan) {
-      const dirPath = join(MEDIA_DIR, dir);
-      if (!existsSync(dirPath)) continue;
-
-      const dirFiles = readdirSync(dirPath);
-      for (const filename of dirFiles) {
-        const fileInfo = getFileInfo(dir, filename);
-        if (fileInfo) files.push(fileInfo);
-      }
-    }
-
-    // Sort by creation date (newest first)
-    files.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    return c.json({
-      files,
-      total: files.length,
-    });
-  } catch (error) {
-    console.error('Error listing media:', error);
-    return c.json({ error: 'Failed to list media files' }, 500);
-  }
+const updateMediaSchema = z.object({
+  alt: z.string().max(500).nullish(),
+  caption: z.string().max(1000).nullish(),
+  folderId: z.number().nullish(),
 });
 
-// GET /api/media/:type/:filename - Serve a media file
-media.get('/:type/:filename', async (c) => {
+const listQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  type: z.enum(['image', 'video', 'document']).optional(),
+  folderId: z.coerce.number().optional(),
+});
+
+// ===========================================
+// ADMIN ROUTES (require auth + site)
+// ===========================================
+
+/**
+ * GET /api/admin/media - List media files for current site
+ */
+media.get(
+  '/',
+  authMiddleware,
+  editorOrAdmin,
+  siteMiddleware,
+  requireSite,
+  zValidator('query', listQuerySchema),
+  async (c) => {
+    const siteId = c.get('siteId');
+    const { page, limit, type, folderId } = c.req.valid('query');
+    const offset = (page - 1) * limit;
+
+    try {
+      const where: any = { siteId };
+      if (type) where.type = type;
+      if (folderId !== undefined) where.folderId = folderId || null;
+
+      const total = await prisma.media.count({ where });
+      const files = await prisma.media.findMany({
+        where,
+        skip: offset,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          folder: {
+            select: { id: true, name: true, slug: true },
+          },
+          uploadedBy: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+
+      return c.json({
+        files,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      console.error('Error listing media:', error);
+      return c.json({ error: 'Failed to list media files' }, 500);
+    }
+  }
+);
+
+/**
+ * POST /api/admin/media/upload - Upload media file
+ */
+media.post(
+  '/upload',
+  authMiddleware,
+  editorOrAdmin,
+  siteMiddleware,
+  requireSite,
+  async (c) => {
+    const siteId = c.get('siteId');
+    const user = c.get('user');
+
+    try {
+      const formData = await c.req.formData();
+      const file = formData.get('file') as File | null;
+      const folderIdStr = formData.get('folderId') as string | null;
+      const folderId = folderIdStr ? parseInt(folderIdStr) : null;
+
+      if (!file) {
+        return c.json({ error: 'No file provided' }, 400);
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        return c.json({ error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` }, 400);
+      }
+
+      const mediaType = getMediaType(file.type);
+      if (!mediaType) {
+        return c.json({
+          error: 'Invalid file type',
+          allowed: [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES, ...ALLOWED_DOCUMENT_TYPES],
+        }, 400);
+      }
+
+      // Validate folder belongs to site
+      if (folderId) {
+        const folder = await prisma.mediaFolder.findFirst({
+          where: { id: folderId, siteId },
+        });
+        if (!folder) {
+          return c.json({ error: 'Folder not found' }, 400);
+        }
+      }
+
+      // Ensure directories exist
+      ensureSiteDirectories(siteId);
+
+      // Generate filename and save
+      const filename = generateFilename(file.name);
+      const dir = typeToDir[mediaType];
+      const relativePath = `/site-${siteId}/${dir}/${filename}`;
+      const filePath = join(MEDIA_DIR, `site-${siteId}`, dir, filename);
+
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      await new Promise<void>((resolve, reject) => {
+        const writeStream = createWriteStream(filePath);
+        writeStream.write(buffer);
+        writeStream.end();
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+      });
+
+      // Create database record
+      const mediaRecord = await prisma.media.create({
+        data: {
+          filename,
+          originalName: file.name,
+          path: relativePath,
+          url: `/api/media/site-${siteId}/${dir}/${filename}`,
+          type: mediaType,
+          mimeType: file.type,
+          size: file.size,
+          siteId,
+          folderId,
+          uploadedById: user.id,
+        },
+        include: {
+          folder: {
+            select: { id: true, name: true, slug: true },
+          },
+          uploadedBy: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+
+      return c.json({
+        message: 'File uploaded successfully',
+        file: mediaRecord,
+      }, 201);
+    } catch (error) {
+      console.error('Error uploading media:', error);
+      return c.json({ error: 'Failed to upload file' }, 500);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/media/:id - Get media info
+ */
+media.get(
+  '/:id',
+  authMiddleware,
+  editorOrAdmin,
+  siteMiddleware,
+  requireSite,
+  async (c) => {
+    const siteId = c.get('siteId');
+    const id = parseInt(c.req.param('id'));
+
+    if (isNaN(id)) {
+      return c.json({ error: 'Invalid media ID' }, 400);
+    }
+
+    try {
+      const mediaRecord = await prisma.media.findFirst({
+        where: { id, siteId },
+        include: {
+          folder: {
+            select: { id: true, name: true, slug: true },
+          },
+          uploadedBy: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+
+      if (!mediaRecord) {
+        return c.json({ error: 'Media not found' }, 404);
+      }
+
+      return c.json({ file: mediaRecord });
+    } catch (error) {
+      console.error('Error getting media:', error);
+      return c.json({ error: 'Failed to get media' }, 500);
+    }
+  }
+);
+
+/**
+ * PUT /api/admin/media/:id - Update media metadata
+ */
+media.put(
+  '/:id',
+  authMiddleware,
+  editorOrAdmin,
+  siteMiddleware,
+  requireSite,
+  zValidator('json', updateMediaSchema),
+  async (c) => {
+    const siteId = c.get('siteId');
+    const id = parseInt(c.req.param('id'));
+    const data = c.req.valid('json');
+
+    if (isNaN(id)) {
+      return c.json({ error: 'Invalid media ID' }, 400);
+    }
+
+    try {
+      const existing = await prisma.media.findFirst({
+        where: { id, siteId },
+      });
+
+      if (!existing) {
+        return c.json({ error: 'Media not found' }, 404);
+      }
+
+      // Validate folder if changing
+      if (data.folderId !== undefined && data.folderId !== null) {
+        const folder = await prisma.mediaFolder.findFirst({
+          where: { id: data.folderId, siteId },
+        });
+        if (!folder) {
+          return c.json({ error: 'Folder not found' }, 400);
+        }
+      }
+
+      const updated = await prisma.media.update({
+        where: { id },
+        data: {
+          ...(data.alt !== undefined && { alt: data.alt }),
+          ...(data.caption !== undefined && { caption: data.caption }),
+          ...(data.folderId !== undefined && { folderId: data.folderId }),
+        },
+        include: {
+          folder: {
+            select: { id: true, name: true, slug: true },
+          },
+          uploadedBy: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+
+      return c.json({ file: updated });
+    } catch (error) {
+      console.error('Error updating media:', error);
+      return c.json({ error: 'Failed to update media' }, 500);
+    }
+  }
+);
+
+/**
+ * DELETE /api/admin/media/:id - Delete media file
+ */
+media.delete(
+  '/:id',
+  authMiddleware,
+  editorOrAdmin,
+  siteMiddleware,
+  requireSite,
+  async (c) => {
+    const siteId = c.get('siteId');
+    const id = parseInt(c.req.param('id'));
+
+    if (isNaN(id)) {
+      return c.json({ error: 'Invalid media ID' }, 400);
+    }
+
+    try {
+      const mediaRecord = await prisma.media.findFirst({
+        where: { id, siteId },
+      });
+
+      if (!mediaRecord) {
+        return c.json({ error: 'Media not found' }, 404);
+      }
+
+      // Delete file from disk
+      const filePath = join(MEDIA_DIR, mediaRecord.path);
+      if (existsSync(filePath)) {
+        unlinkSync(filePath);
+      }
+
+      // Delete database record
+      await prisma.media.delete({
+        where: { id },
+      });
+
+      return c.json({ message: 'Media deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting media:', error);
+      return c.json({ error: 'Failed to delete media' }, 500);
+    }
+  }
+);
+
+// ===========================================
+// PUBLIC ROUTES (serve files)
+// ===========================================
+
+/**
+ * GET /api/media/site-:siteId/:type/:filename - Serve media file
+ * Public route - determines site from URL path
+ */
+media.get('/site-:siteId/:type/:filename', async (c) => {
   try {
+    const siteId = c.req.param('siteId');
     const type = c.req.param('type');
     const filename = c.req.param('filename');
 
@@ -169,7 +440,7 @@ media.get('/:type/:filename', async (c) => {
       return c.json({ error: 'Invalid media type' }, 400);
     }
 
-    const filePath = join(MEDIA_DIR, type, filename);
+    const filePath = join(MEDIA_DIR, `site-${siteId}`, type, filename);
 
     if (!existsSync(filePath)) {
       return c.json({ error: 'File not found' }, 404);
@@ -179,7 +450,7 @@ media.get('/:type/:filename', async (c) => {
     const ext = extname(filename);
     const mimeType = getMimeType(ext);
 
-    // Set cache headers for static files
+    // Set cache headers
     c.header('Content-Type', mimeType);
     c.header('Content-Length', String(stat.size));
     c.header('Cache-Control', 'public, max-age=31536000, immutable');
@@ -220,119 +491,6 @@ media.get('/:type/:filename', async (c) => {
   } catch (error) {
     console.error('Error serving media:', error);
     return c.json({ error: 'Failed to serve media file' }, 500);
-  }
-});
-
-// POST /api/media/upload - Upload a media file
-media.post('/upload', async (c) => {
-  try {
-    const formData = await c.req.formData();
-    const file = formData.get('file') as File | null;
-
-    if (!file) {
-      return c.json({ error: 'No file provided' }, 400);
-    }
-
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
-      return c.json({ error: `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB` }, 400);
-    }
-
-    // Check file type
-    const mediaType = getMediaType(file.type);
-    if (!mediaType) {
-      return c.json({
-        error: 'Invalid file type',
-        allowed: [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES, ...ALLOWED_DOCUMENT_TYPES],
-      }, 400);
-    }
-
-    // Generate filename and path
-    const filename = generateFilename(file.name);
-    const dir = typeToDir[mediaType];
-    const filePath = join(MEDIA_DIR, dir, filename);
-
-    // Save file
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    await new Promise<void>((resolve, reject) => {
-      const writeStream = createWriteStream(filePath);
-      writeStream.write(buffer);
-      writeStream.end();
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
-    });
-
-    const fileInfo = getFileInfo(dir, filename);
-
-    return c.json({
-      message: 'File uploaded successfully',
-      file: fileInfo,
-    }, 201);
-  } catch (error) {
-    console.error('Error uploading media:', error);
-    return c.json({ error: 'Failed to upload file' }, 500);
-  }
-});
-
-// DELETE /api/media/:type/:filename - Delete a media file
-media.delete('/:type/:filename', async (c) => {
-  try {
-    const type = c.req.param('type');
-    const filename = c.req.param('filename');
-
-    // Prevent directory traversal
-    if (filename.includes('..') || filename.includes('/')) {
-      return c.json({ error: 'Invalid filename' }, 400);
-    }
-
-    const validDirs = Object.values(typeToDir);
-    if (!validDirs.includes(type)) {
-      return c.json({ error: 'Invalid media type' }, 400);
-    }
-
-    const filePath = join(MEDIA_DIR, type, filename);
-
-    if (!existsSync(filePath)) {
-      return c.json({ error: 'File not found' }, 404);
-    }
-
-    unlinkSync(filePath);
-
-    return c.json({ message: 'File deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting media:', error);
-    return c.json({ error: 'Failed to delete file' }, 500);
-  }
-});
-
-// GET /api/media/info/:type/:filename - Get file info
-media.get('/info/:type/:filename', async (c) => {
-  try {
-    const type = c.req.param('type');
-    const filename = c.req.param('filename');
-
-    // Prevent directory traversal
-    if (filename.includes('..') || filename.includes('/')) {
-      return c.json({ error: 'Invalid filename' }, 400);
-    }
-
-    const validDirs = Object.values(typeToDir);
-    if (!validDirs.includes(type)) {
-      return c.json({ error: 'Invalid media type' }, 400);
-    }
-
-    const fileInfo = getFileInfo(type, filename);
-
-    if (!fileInfo) {
-      return c.json({ error: 'File not found' }, 404);
-    }
-
-    return c.json(fileInfo);
-  } catch (error) {
-    console.error('Error getting file info:', error);
-    return c.json({ error: 'Failed to get file info' }, 500);
   }
 });
 

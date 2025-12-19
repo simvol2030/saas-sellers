@@ -19,12 +19,15 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
+import { siteMiddleware, requireSite } from '../middleware/site.js';
 
 const pages = new Hono();
 
-// Apply auth to all routes
+// Apply auth and site middleware to all routes
 pages.use('*', authMiddleware);
 pages.use('*', editorOrAdmin);
+pages.use('*', siteMiddleware);
+pages.use('*', requireSite);
 
 // ===========================================
 // VALIDATION SCHEMAS
@@ -78,21 +81,26 @@ const listQuerySchema = z.object({
  */
 pages.get('/', zValidator('query', listQuerySchema), async (c) => {
   const { page, limit, status, search, sortBy, sortOrder } = c.req.valid('query');
+  const siteId = c.get('siteId');
   const offset = (page - 1) * limit;
 
   try {
-    // Build where clause
-    const where: any = {};
+    // Build where clause - always filter by siteId
+    const where: any = { siteId };
 
     if (status !== 'all') {
       where.status = status;
     }
 
     if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { slug: { contains: search } },
-        { description: { contains: search } },
+      where.AND = [
+        {
+          OR: [
+            { title: { contains: search } },
+            { slug: { contains: search } },
+            { description: { contains: search } },
+          ],
+        },
       ];
     }
 
@@ -147,11 +155,14 @@ pages.get('/', zValidator('query', listQuerySchema), async (c) => {
 pages.post('/', zValidator('json', createPageSchema), async (c) => {
   const data = c.req.valid('json');
   const user = c.get('user');
+  const siteId = c.get('siteId');
 
   try {
-    // Check if slug already exists
+    // Check if slug already exists within this site
     const existing = await prisma.page.findUnique({
-      where: { slug: data.slug },
+      where: {
+        siteId_slug: { siteId, slug: data.slug },
+      },
     });
 
     if (existing) {
@@ -161,12 +172,13 @@ pages.post('/', zValidator('json', createPageSchema), async (c) => {
       }, 400);
     }
 
-    // Create page
+    // Create page with siteId
     const page = await prisma.page.create({
       data: {
         ...data,
         sections: JSON.stringify(data.sections),
         authorId: user.id,
+        siteId,
       },
       include: {
         author: {
@@ -198,14 +210,15 @@ pages.post('/', zValidator('json', createPageSchema), async (c) => {
  */
 pages.get('/:id', async (c) => {
   const id = parseInt(c.req.param('id'), 10);
+  const siteId = c.get('siteId');
 
   if (isNaN(id)) {
     return c.json({ error: 'Invalid page ID' }, 400);
   }
 
   try {
-    const page = await prisma.page.findUnique({
-      where: { id },
+    const page = await prisma.page.findFirst({
+      where: { id, siteId },
       include: {
         author: {
           select: {
@@ -242,25 +255,28 @@ pages.get('/:id', async (c) => {
 pages.put('/:id', zValidator('json', updatePageSchema), async (c) => {
   const id = parseInt(c.req.param('id'), 10);
   const data = c.req.valid('json');
+  const siteId = c.get('siteId');
 
   if (isNaN(id)) {
     return c.json({ error: 'Invalid page ID' }, 400);
   }
 
   try {
-    // Check if page exists
-    const existing = await prisma.page.findUnique({
-      where: { id },
+    // Check if page exists within this site
+    const existing = await prisma.page.findFirst({
+      where: { id, siteId },
     });
 
     if (!existing) {
       return c.json({ error: 'Page not found' }, 404);
     }
 
-    // Check slug uniqueness if changing
+    // Check slug uniqueness within site if changing
     if (data.slug && data.slug !== existing.slug) {
       const slugExists = await prisma.page.findUnique({
-        where: { slug: data.slug },
+        where: {
+          siteId_slug: { siteId, slug: data.slug },
+        },
       });
 
       if (slugExists) {
@@ -311,14 +327,15 @@ pages.put('/:id', zValidator('json', updatePageSchema), async (c) => {
  */
 pages.delete('/:id', async (c) => {
   const id = parseInt(c.req.param('id'), 10);
+  const siteId = c.get('siteId');
 
   if (isNaN(id)) {
     return c.json({ error: 'Invalid page ID' }, 400);
   }
 
   try {
-    const page = await prisma.page.findUnique({
-      where: { id },
+    const page = await prisma.page.findFirst({
+      where: { id, siteId },
     });
 
     if (!page) {
@@ -342,14 +359,15 @@ pages.delete('/:id', async (c) => {
  */
 pages.post('/:id/publish', async (c) => {
   const id = parseInt(c.req.param('id'), 10);
+  const siteId = c.get('siteId');
 
   if (isNaN(id)) {
     return c.json({ error: 'Invalid page ID' }, 400);
   }
 
   try {
-    const page = await prisma.page.findUnique({
-      where: { id },
+    const page = await prisma.page.findFirst({
+      where: { id, siteId },
     });
 
     if (!page) {
@@ -387,14 +405,15 @@ pages.post('/:id/publish', async (c) => {
  */
 pages.post('/:id/unpublish', async (c) => {
   const id = parseInt(c.req.param('id'), 10);
+  const siteId = c.get('siteId');
 
   if (isNaN(id)) {
     return c.json({ error: 'Invalid page ID' }, 400);
   }
 
   try {
-    const page = await prisma.page.findUnique({
-      where: { id },
+    const page = await prisma.page.findFirst({
+      where: { id, siteId },
     });
 
     if (!page) {
@@ -432,30 +451,31 @@ pages.post('/:id/unpublish', async (c) => {
 pages.post('/:id/duplicate', async (c) => {
   const id = parseInt(c.req.param('id'), 10);
   const user = c.get('user');
+  const siteId = c.get('siteId');
 
   if (isNaN(id)) {
     return c.json({ error: 'Invalid page ID' }, 400);
   }
 
   try {
-    const original = await prisma.page.findUnique({
-      where: { id },
+    const original = await prisma.page.findFirst({
+      where: { id, siteId },
     });
 
     if (!original) {
       return c.json({ error: 'Page not found' }, 404);
     }
 
-    // Generate unique slug
+    // Generate unique slug within site
     let newSlug = `${original.slug}-copy`;
     let counter = 1;
 
-    while (await prisma.page.findUnique({ where: { slug: newSlug } })) {
+    while (await prisma.page.findUnique({ where: { siteId_slug: { siteId, slug: newSlug } } })) {
       newSlug = `${original.slug}-copy-${counter}`;
       counter++;
     }
 
-    // Create duplicate
+    // Create duplicate with siteId
     const duplicate = await prisma.page.create({
       data: {
         slug: newSlug,
@@ -474,6 +494,7 @@ pages.post('/:id/duplicate', async (c) => {
         prerender: original.prerender,
         status: 'draft', // Always start as draft
         authorId: user.id,
+        siteId,
       },
       include: {
         author: {
