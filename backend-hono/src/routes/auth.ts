@@ -296,10 +296,32 @@ auth.post('/register', zValidator('json', registerSchema), async (c) => {
       },
     });
 
+    // If first user, create default site with menus
+    let defaultSite = null;
+    if (isFirstUser) {
+      defaultSite = await prisma.site.create({
+        data: {
+          name: 'Default Site',
+          slug: 'default',
+          ownerId: user.id,
+          settings: '{}',
+        },
+      });
+
+      // Create default menus for the site
+      await prisma.menu.createMany({
+        data: [
+          { name: 'Header Menu', slug: 'header', location: 'header', items: '[]', siteId: defaultSite.id },
+          { name: 'Footer Menu', slug: 'footer', location: 'footer', items: '[]', siteId: defaultSite.id },
+        ],
+      });
+    }
+
     return c.json({
       message: 'User created successfully',
       user,
       isFirstUser,
+      ...(defaultSite && { site: { id: defaultSite.id, slug: defaultSite.slug, name: defaultSite.name } }),
     }, 201);
   } catch (error) {
     console.error('Register error:', error);
