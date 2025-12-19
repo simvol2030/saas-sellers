@@ -11,6 +11,12 @@ import adminPages from './routes/pages.js';
 import publicPages from './routes/public-pages.js';
 import settings from './routes/settings.js';
 import theme from './routes/theme.js';
+// Phase 1: New routes
+import sites from './routes/sites.js';
+import tags from './routes/tags.js';
+import mediaFolders from './routes/media-folders.js';
+import blocks from './routes/blocks.js';
+import menus from './routes/menus.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma } from './lib/db.js';
 
@@ -72,6 +78,13 @@ app.route('/api/pages', publicPages);
 app.route('/api/media', media);
 app.route('/api/admin/settings', settings);
 app.route('/api/admin/theme', theme);
+// Phase 1: New routes
+app.route('/api/admin/sites', sites);
+app.route('/api/admin/tags', tags);
+app.route('/api/admin/media/folders', mediaFolders);
+app.route('/api/admin/blocks', blocks);
+app.route('/api/admin/menus', menus);
+app.route('/api/menus', menus); // Public menu access
 
 // Error handler (must be last)
 app.onError(errorHandler);

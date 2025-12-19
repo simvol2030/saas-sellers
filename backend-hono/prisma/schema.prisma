@@ -1,4 +1,5 @@
 // Prisma Schema - Landing Builder + Admin Panel
+// Phase 1: Multisite, Page Hierarchy, Tags, Media Folders, Reusable Blocks, Menus
 // Для переключения на PostgreSQL измените provider и DATABASE_URL
 
 datasource db {
@@ -8,7 +9,43 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+// ==========================================
+// SITE (Multisite Support)
+// ==========================================
+
+model Site {
+  id          Int      @id @default(autoincrement())
+  name        String                    // "Мой сайт"
+  slug        String   @unique          // "my-site" (для URLs)
+  domain      String?  @unique          // "example.com"
+  subdomain   String?  @unique          // "site1" (site1.platform.com)
+
+  // Owner
+  ownerId     Int
+  owner       User     @relation("SiteOwner", fields: [ownerId], references: [id])
+
+  // Settings (JSON)
+  settings    String   @default("{}")   // Настройки сайта
+
+  // Relations
+  pages           Page[]
+  media           Media[]
+  mediaFolders    MediaFolder[]
+  siteSettings    SiteSetting[]
+  themeOverrides  ThemeOverride[]
+  menus           Menu[]
+  reusableBlocks  ReusableBlock[]
+  tags            Tag[]
+
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("sites")
 }
 
 // ==========================================
@@ -23,9 +60,11 @@ model User {
   role      String   @default("editor") // admin, editor, viewer
 
   // Relations
-  pages     Page[]
-  media     Media[]
-  sessions  Session[]
+  pages           Page[]
+  media           Media[]
+  sessions        Session[]
+  ownedSites      Site[]          @relation("SiteOwner")
+  reusableBlocks  ReusableBlock[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -54,7 +93,7 @@ model Session {
 
 model Page {
   id          Int      @id @default(autoincrement())
-  slug        String   @unique
+  slug        String
   title       String
   description String?
 
@@ -81,22 +120,104 @@ model Page {
   // Build options
   prerender   Boolean  @default(true) // SSG by default
 
+  // === NEW: Multisite ===
+  siteId      Int
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  // === NEW: Page Hierarchy (до 3 уровней) ===
+  parentId    Int?
+  parent      Page?    @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Page[]   @relation("PageHierarchy")
+  order       Int      @default(0)  // Порядок сортировки
+  level       Int      @default(0)  // 0, 1, 2 (до 3 уровней)
+  path        String?               // "/parent/child/grandchild" для быстрого поиска
+
   // Relations
   authorId    Int
   author      User     @relation(fields: [authorId], references: [id])
 
+  // === NEW: Tags ===
+  tags        PageTag[]
+
+  // === NEW: Reusable Blocks ===
+  blockUsages BlockUsage[]
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([slug])
+  @@unique([siteId, slug])  // Slug уникален в рамках сайта
+  @@index([siteId])
   @@index([status])
   @@index([authorId])
+  @@index([parentId])
+  @@index([path])
   @@map("pages")
+}
+
+// ==========================================
+// TAGS (for Pages)
+// ==========================================
+
+model Tag {
+  id        Int       @id @default(autoincrement())
+  name      String
+  slug      String
+  color     String?   // Цвет для UI (hex)
+
+  // Multisite
+  siteId    Int
+  site      Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  // Relations
+  pages     PageTag[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([siteId, slug])
+  @@index([siteId])
+  @@map("tags")
+}
+
+model PageTag {
+  pageId    Int
+  tagId     Int
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([pageId, tagId])
+  @@map("page_tags")
 }
 
 // ==========================================
 // MEDIA
 // ==========================================
+
+model MediaFolder {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String
+
+  // Hierarchy
+  parentId  Int?
+  parent    MediaFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  MediaFolder[] @relation("FolderHierarchy")
+
+  // Multisite
+  siteId    Int
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  // Relations
+  media     Media[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([siteId, parentId, slug])
+  @@index([siteId])
+  @@index([parentId])
+  @@map("media_folders")
+}
 
 model Media {
   id        Int      @id @default(autoincrement())
@@ -115,6 +236,14 @@ model Media {
   height    Int?     // for images
   duration  Int?     // for videos (seconds)
 
+  // === NEW: Multisite ===
+  siteId    Int?
+  site      Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  // === NEW: Folder ===
+  folderId  Int?
+  folder    MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
   // Relations
   uploadedById Int?
   uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
@@ -123,7 +252,84 @@ model Media {
 
   @@index([type])
   @@index([uploadedById])
+  @@index([siteId])
+  @@index([folderId])
   @@map("media")
+}
+
+// ==========================================
+// REUSABLE BLOCKS
+// ==========================================
+
+model ReusableBlock {
+  id          Int      @id @default(autoincrement())
+  name        String                    // "Hero + Features комбо"
+  slug        String
+  description String?
+  sections    String   @default("[]")   // JSON массив секций
+  category    String?                   // Категория блока
+  thumbnail   String?                   // Превью изображение
+
+  // Multisite
+  siteId      Int
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  // Author
+  authorId    Int
+  author      User     @relation(fields: [authorId], references: [id])
+
+  // Usage tracking
+  usages      BlockUsage[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([siteId, slug])
+  @@index([siteId])
+  @@index([authorId])
+  @@map("reusable_blocks")
+}
+
+model BlockUsage {
+  id          Int      @id @default(autoincrement())
+
+  blockId     Int
+  block       ReusableBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  pageId      Int
+  page        Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  position    Int      // Позиция в странице (индекс секции после которой вставлен)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([pageId, position])
+  @@index([blockId])
+  @@index([pageId])
+  @@map("block_usages")
+}
+
+// ==========================================
+// MENUS
+// ==========================================
+
+model Menu {
+  id        Int      @id @default(autoincrement())
+  name      String                    // "Главное меню", "Footer меню"
+  slug      String                    // "main", "footer"
+  location  String   @default("header") // header, footer, sidebar
+  items     String   @default("[]")   // JSON массив MenuItem
+
+  // Multisite
+  siteId    Int
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([siteId, slug])
+  @@index([siteId])
+  @@map("menus")
 }
 
 // ==========================================
@@ -132,14 +338,20 @@ model Media {
 
 model SiteSetting {
   id    Int    @id @default(autoincrement())
-  key   String @unique
+  key   String
   value String // JSON value
 
   // Grouping for UI
   group String @default("general") // general, theme, header, footer, seo
 
+  // === NEW: Multisite ===
+  siteId    Int
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
   updatedAt DateTime @updatedAt
 
+  @@unique([siteId, key])  // Key уникален в рамках сайта
+  @@index([siteId])
   @@index([group])
   @@map("site_settings")
 }
@@ -150,12 +362,18 @@ model SiteSetting {
 
 model ThemeOverride {
   id        Int      @id @default(autoincrement())
-  name      String   @unique // e.g., "colors.light.primary"
+  name      String   // e.g., "colors.light.primary"
   value     String   // CSS value
   isActive  Boolean  @default(true)
+
+  // === NEW: Multisite ===
+  siteId    Int
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([siteId, name])  // Name уникален в рамках сайта
+  @@index([siteId])
   @@map("theme_overrides")
 }
