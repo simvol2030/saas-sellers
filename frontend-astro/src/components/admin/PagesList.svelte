@@ -6,6 +6,8 @@
    * Features: pagination, search, filters, bulk actions
    */
 
+  import { apiFetch } from '../../lib/api';
+
   interface Page {
     id: number;
     slug: string;
@@ -39,22 +41,25 @@
   });
   let loading = $state(true);
   let error = $state<string | null>(null);
+  let notification = $state<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Filters
   let search = $state('');
   let statusFilter = $state<'all' | 'draft' | 'published'>('all');
   let searchTimeout: number;
 
+  // Show notification
+  function showNotification(type: 'success' | 'error', message: string) {
+    notification = { type, message };
+    setTimeout(() => {
+      notification = null;
+    }, 5000);
+  }
+
   // Load pages
   async function loadPages() {
     loading = true;
     error = null;
-
-    const token = localStorage.getItem('accessToken');
-    if (!token) {
-      window.location.href = '/admin/login';
-      return;
-    }
 
     try {
       const params = new URLSearchParams({
@@ -69,25 +74,14 @@
         params.set('search', search);
       }
 
-      const res = await fetch(`/api/admin/pages?${params}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const data = await apiFetch<{ pages: Page[]; pagination: Pagination }>(
+        `/api/admin/pages?${params}`
+      );
 
-      if (!res.ok) {
-        if (res.status === 401) {
-          window.location.href = '/admin/login';
-          return;
-        }
-        throw new Error('Failed to load pages');
-      }
-
-      const data = await res.json();
       pages = data.pages;
       pagination = data.pagination;
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Unknown error';
+      error = e instanceof Error ? e.message : 'Ошибка загрузки страниц';
     } finally {
       loading = false;
     }
@@ -117,76 +111,56 @@
 
   // Actions
   async function publishPage(id: number) {
-    const token = localStorage.getItem('accessToken');
     try {
-      const res = await fetch(`/api/admin/pages/${id}/publish`, {
+      await apiFetch(`/api/admin/pages/${id}/publish`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-
-      if (res.ok) {
-        loadPages();
-      }
+      showNotification('success', 'Страница опубликована');
+      loadPages();
     } catch (e) {
       console.error('Publish error:', e);
+      showNotification('error', 'Не удалось опубликовать страницу');
     }
   }
 
   async function unpublishPage(id: number) {
-    const token = localStorage.getItem('accessToken');
     try {
-      const res = await fetch(`/api/admin/pages/${id}/unpublish`, {
+      await apiFetch(`/api/admin/pages/${id}/unpublish`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-
-      if (res.ok) {
-        loadPages();
-      }
+      showNotification('success', 'Страница снята с публикации');
+      loadPages();
     } catch (e) {
       console.error('Unpublish error:', e);
+      showNotification('error', 'Не удалось снять страницу с публикации');
     }
   }
 
   async function deletePage(id: number, title: string) {
     if (!confirm(`Удалить страницу "${title}"?`)) return;
 
-    const token = localStorage.getItem('accessToken');
     try {
-      const res = await fetch(`/api/admin/pages/${id}`, {
+      await apiFetch(`/api/admin/pages/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-
-      if (res.ok) {
-        loadPages();
-      }
+      showNotification('success', 'Страница удалена');
+      loadPages();
     } catch (e) {
       console.error('Delete error:', e);
+      showNotification('error', 'Не удалось удалить страницу');
     }
   }
 
   async function duplicatePage(id: number) {
-    const token = localStorage.getItem('accessToken');
     try {
-      const res = await fetch(`/api/admin/pages/${id}/duplicate`, {
+      await apiFetch(`/api/admin/pages/${id}/duplicate`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-
-      if (res.ok) {
-        loadPages();
-      }
+      showNotification('success', 'Страница скопирована');
+      loadPages();
     } catch (e) {
       console.error('Duplicate error:', e);
+      showNotification('error', 'Не удалось скопировать страницу');
     }
   }
 
@@ -208,6 +182,20 @@
 </script>
 
 <div class="pages-list">
+  <!-- Notification -->
+  {#if notification}
+    <div class="notification notification-{notification.type}">
+      {notification.message}
+      <button
+        type="button"
+        class="notification-close"
+        onclick={() => notification = null}
+      >
+        ×
+      </button>
+    </div>
+  {/if}
+
   <!-- Toolbar -->
   <div class="toolbar">
     <div class="search-box">
@@ -671,5 +659,63 @@
   .page-info {
     color: var(--color-text-muted);
     font-size: var(--font-font-size-sm);
+  }
+
+  /* Notification */
+  .notification {
+    position: fixed;
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-font-size-sm);
+    font-weight: var(--font-font-weight-medium);
+    box-shadow: var(--shadow-xl);
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .notification-success {
+    background: var(--color-success);
+    color: white;
+  }
+
+  .notification-error {
+    background: var(--color-error);
+    color: white;
+  }
+
+  .notification-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1.5rem;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+
+  .notification-close:hover {
+    background: rgba(255, 255, 255, 0.3);
   }
 </style>
