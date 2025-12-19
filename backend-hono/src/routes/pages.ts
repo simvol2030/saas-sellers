@@ -257,6 +257,91 @@ pages.post('/', zValidator('json', createPageSchema), async (c) => {
 });
 
 /**
+ * GET /api/admin/pages/tree
+ * Get hierarchical tree of pages
+ * IMPORTANT: Must be defined BEFORE /:id to avoid route conflict
+ */
+pages.get('/tree', async (c) => {
+  const siteId = c.get('siteId');
+
+  try {
+    // Get all pages for this site
+    const allPages = await prisma.page.findMany({
+      where: { siteId },
+      orderBy: [{ level: 'asc' }, { order: 'asc' }, { title: 'asc' }],
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        status: true,
+        parentId: true,
+        level: true,
+        order: true,
+        path: true,
+        tags: {
+          select: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                color: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Build tree structure
+    interface TreeNode {
+      id: number;
+      slug: string;
+      title: string;
+      status: string;
+      parentId: number | null;
+      level: number;
+      order: number;
+      path: string | null;
+      tags: Array<{ id: number; name: string; slug: string; color: string | null }>;
+      children: TreeNode[];
+    }
+
+    const pageMap = new Map<number, TreeNode>();
+    const rootPages: TreeNode[] = [];
+
+    // First pass: create all nodes
+    for (const page of allPages) {
+      const node: TreeNode = {
+        ...page,
+        tags: page.tags.map((pt: typeof page.tags[0]) => pt.tag),
+        children: [],
+      };
+      pageMap.set(page.id, node);
+    }
+
+    // Second pass: build hierarchy
+    for (const page of allPages) {
+      const node = pageMap.get(page.id)!;
+      if (page.parentId && pageMap.has(page.parentId)) {
+        const parent = pageMap.get(page.parentId)!;
+        parent.children.push(node);
+      } else {
+        rootPages.push(node);
+      }
+    }
+
+    return c.json({
+      tree: rootPages,
+      total: allPages.length,
+    });
+  } catch (error) {
+    console.error('Get pages tree error:', error);
+    return c.json({ error: 'Failed to get pages tree' }, 500);
+  }
+});
+
+/**
  * GET /api/admin/pages/:id
  * Get page by ID
  */
@@ -569,90 +654,6 @@ pages.post('/:id/duplicate', async (c) => {
   } catch (error) {
     console.error('Duplicate page error:', error);
     return c.json({ error: 'Failed to duplicate page' }, 500);
-  }
-});
-
-/**
- * GET /api/admin/pages/tree
- * Get hierarchical tree of pages
- */
-pages.get('/tree', async (c) => {
-  const siteId = c.get('siteId');
-
-  try {
-    // Get all pages for this site
-    const allPages = await prisma.page.findMany({
-      where: { siteId },
-      orderBy: [{ level: 'asc' }, { order: 'asc' }, { title: 'asc' }],
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        status: true,
-        parentId: true,
-        level: true,
-        order: true,
-        path: true,
-        tags: {
-          select: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                color: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // Build tree structure
-    interface TreeNode {
-      id: number;
-      slug: string;
-      title: string;
-      status: string;
-      parentId: number | null;
-      level: number;
-      order: number;
-      path: string | null;
-      tags: Array<{ id: number; name: string; slug: string; color: string | null }>;
-      children: TreeNode[];
-    }
-
-    const pageMap = new Map<number, TreeNode>();
-    const rootPages: TreeNode[] = [];
-
-    // First pass: create all nodes
-    for (const page of allPages) {
-      const node: TreeNode = {
-        ...page,
-        tags: page.tags.map((pt: typeof page.tags[0]) => pt.tag),
-        children: [],
-      };
-      pageMap.set(page.id, node);
-    }
-
-    // Second pass: build hierarchy
-    for (const page of allPages) {
-      const node = pageMap.get(page.id)!;
-      if (page.parentId && pageMap.has(page.parentId)) {
-        const parent = pageMap.get(page.parentId)!;
-        parent.children.push(node);
-      } else {
-        rootPages.push(node);
-      }
-    }
-
-    return c.json({
-      tree: rootPages,
-      total: allPages.length,
-    });
-  } catch (error) {
-    console.error('Get pages tree error:', error);
-    return c.json({ error: 'Failed to get pages tree' }, 500);
   }
 });
 

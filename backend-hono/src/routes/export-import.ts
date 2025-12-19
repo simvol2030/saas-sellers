@@ -335,6 +335,37 @@ exportImport.post('/pages/import/batch', async (c) => {
           created = true;
         }
 
+        // Handle tags (same as single import)
+        if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
+          // Delete existing tags
+          await prisma.pageTag.deleteMany({ where: { pageId: page.id } });
+
+          // Add new tags
+          for (const tagSlug of frontmatter.tags) {
+            let tag = await prisma.tag.findUnique({
+              where: { siteId_slug: { siteId, slug: tagSlug } },
+            });
+
+            if (!tag) {
+              // Create tag if doesn't exist
+              tag = await prisma.tag.create({
+                data: {
+                  name: tagSlug,
+                  slug: tagSlug,
+                  siteId,
+                },
+              });
+            }
+
+            await prisma.pageTag.create({
+              data: {
+                pageId: page.id,
+                tagId: tag.id,
+              },
+            });
+          }
+        }
+
         results.push({
           file: file.name,
           page,

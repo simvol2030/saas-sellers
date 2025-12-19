@@ -33,7 +33,6 @@
   let error = $state<string | null>(null);
   let notification = $state<{ type: 'success' | 'error'; message: string } | null>(null);
   let showCreateModal = $state(false);
-  let editingMenu = $state<Menu | null>(null);
 
   // New menu form
   let newMenu = $state({
