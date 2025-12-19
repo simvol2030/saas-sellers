@@ -19,6 +19,29 @@
 | `POST /api/admin/pages/import/batch` | pages.ts | НУЖНО добавить |
 | `GET /api/admin/pages/export-all` | pages.ts | НУЖНО добавить |
 
+### ⚠️ КРИТИЧНО: Frontend не отправляет X-Site-ID
+
+**Файл:** `frontend-astro/src/lib/api.ts`
+
+**Проблема:** Функция `apiFetch` не отправляет header `X-Site-ID`, который требуется backend для multisite.
+
+**Решение:** Добавить в `apiFetch`:
+```typescript
+// Get current site ID from localStorage
+const siteId = localStorage.getItem('currentSiteId');
+if (siteId) {
+  headers.set('X-Site-ID', siteId);
+}
+```
+
+### Навигация админки (нужно обновить):
+
+**Файл:** `frontend-astro/src/layouts/Admin.astro`
+
+Добавить пункты меню:
+- Блоки (`/admin/blocks`)
+- Меню (`/admin/menus`)
+
 ### Недостающие npm dependencies:
 
 ```json
@@ -458,7 +481,11 @@ interface FooterConfig {
 
 ---
 
-## Порядок реализации (пересмотренный после аудита)
+## Порядок реализации (пересмотренный после финального аудита)
+
+### Этап 0: КРИТИЧНЫЕ исправления (ПЕРВЫМ!)
+0.1. [ ] **api.ts:** Добавить X-Site-ID header в apiFetch
+0.2. [ ] **Admin.astro:** Добавить навигацию Блоки и Меню
 
 ### Этап 1: Backend дополнения
 1. [ ] Добавить `GET /api/admin/pages/tree` в pages.ts
