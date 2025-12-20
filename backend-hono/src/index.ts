@@ -34,6 +34,8 @@ import { webhooks } from './routes/webhooks.js';
 import { promoCodes } from './routes/promo-codes.js';
 import { productImportExport } from './routes/product-import-export.js';
 import { notifications } from './routes/notifications.js';
+// Phase 6: Stats and optional features
+import { stats } from './routes/stats.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma, initDatabase } from './lib/db.js';
 
@@ -179,6 +181,7 @@ app.route('/api/promo', promoCodes); // Public promo validation
 app.route('/api/admin/promo', promoCodes); // Admin promo management
 app.route('/api/admin/products', productImportExport); // Import/export (adds /export, /import to products)
 app.route('/api/admin/notifications', notifications); // Notification settings
+app.route('/api/admin/stats', stats); // Statistics and analytics
 
 // Error handler (must be last)
 app.onError(errorHandler);

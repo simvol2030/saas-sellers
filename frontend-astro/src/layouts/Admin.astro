@@ -46,6 +46,8 @@ const navItems = [
   { href: '/admin/payments', label: 'Платежи', icon: 'payments', section: 'payments' },
   { href: '/admin/promo', label: 'Промокоды', icon: 'promo', section: 'promo' },
   { href: '/admin/notifications', label: 'Уведомления', icon: 'notifications', section: 'notifications' },
+  // Phase 6: Analytics
+  { href: '/admin/stats', label: 'Статистика', icon: 'stats', section: 'orders' },
 ];
 
 const currentPath = Astro.url.pathname;
@@ -329,6 +331,7 @@ const currentPath = Astro.url.pathname;
     .nav-icon[data-icon="payments"]::before { content: '💳'; }
     .nav-icon[data-icon="promo"]::before { content: '🎟️'; }
     .nav-icon[data-icon="notifications"]::before { content: '🔔'; }
+    .nav-icon[data-icon="stats"]::before { content: '📊'; }
 
     .nav-separator {
       height: 1px;
