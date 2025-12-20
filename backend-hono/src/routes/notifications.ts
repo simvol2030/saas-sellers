@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
 import { siteMiddleware, requireSite } from '../middleware/site.js';
+import { sendEmail, testEmailConnection, clearTransporterCache, sendOrderEmail, sendLowStockEmail, sendPaymentEmail } from '../lib/email/index.js';
 
 const notifications = new Hono();
 notifications.use('*', authMiddleware, siteMiddleware, requireSite, editorOrAdmin);
@@ -116,6 +117,9 @@ notifications.put('/settings', zValidator('json', settingsSchema), async (c) => 
     },
   });
 
+  // Clear transporter cache when SMTP settings change
+  clearTransporterCache(siteId);
+
   return c.json({ message: 'Settings updated' });
 });
 
@@ -149,27 +153,43 @@ notifications.post('/test', zValidator('json', testSchema), async (c) => {
     }
 
     try {
-      // Using nodemailer would be ideal, but for simplicity we'll use fetch to a mail API
-      // In production, you'd use nodemailer or a service like SendGrid/Mailgun
+      // First test the connection
+      const connectionTest = await testEmailConnection(siteId);
+      if (!connectionTest.success) {
+        return c.json({
+          success: false,
+          error: `Connection failed: ${connectionTest.error}`,
+        }, 400);
+      }
 
-      // Simulate email send for now
-      console.log(`[TEST EMAIL] To: ${to}, From: ${settings.smtpFrom}`);
-      console.log(`[TEST EMAIL] Subject: Test notification from SaaS Platform`);
-      console.log(`[TEST EMAIL] Body: This is a test notification. If you received this, email is configured correctly.`);
+      // Send test email using nodemailer
+      const subject = 'Test notification from SaaS Platform';
+      const html = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #3b82f6;">Test Email</h2>
+          <p>This is a test notification from your SaaS Platform.</p>
+          <p>If you received this message, your email settings are configured correctly!</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #666; font-size: 12px;">
+            Sent at: ${new Date().toISOString()}<br>
+            From: ${settings.smtpFrom}
+          </p>
+        </div>
+      `;
 
-      // Actual implementation would be:
-      // const transporter = nodemailer.createTransport({
-      //   host: settings.smtpHost,
-      //   port: settings.smtpPort,
-      //   auth: { user: settings.smtpUser, pass: settings.smtpPass }
-      // });
-      // await transporter.sendMail({ from: settings.smtpFrom, to, subject, text });
+      const result = await sendEmail(siteId, to, subject, html);
 
-      return c.json({
-        success: true,
-        message: `Test email would be sent to ${to}`,
-        note: 'Email sending is simulated in development mode',
-      });
+      if (result.success) {
+        return c.json({
+          success: true,
+          message: `Test email sent to ${to}`,
+        });
+      } else {
+        return c.json({
+          success: false,
+          error: result.error || 'Email send failed',
+        }, 500);
+      }
     } catch (error) {
       return c.json({
         success: false,
@@ -355,7 +375,7 @@ ${order.phone ? `📱 ${order.phone}` : ''}
 Статус: ${order.status}
 `.trim();
 
-  // Send Telegram notification
+  // Send Telegram notification to admin
   if (settings.telegramBotToken && settings.telegramChatId) {
     try {
       await fetch(
@@ -380,8 +400,14 @@ ${order.phone ? `📱 ${order.phone}` : ''}
     }
   }
 
-  // Email notification would go here
-  // if (settings.smtpHost && settings.smtpFrom) { ... }
+  // Send email notification to customer
+  if (settings.smtpHost && settings.smtpFrom) {
+    try {
+      await sendOrderEmail(siteId, orderId);
+    } catch (error) {
+      console.error('Failed to send order email:', error);
+    }
+  }
 }
 
 export async function sendPaymentNotification(siteId: number, orderId: number) {
@@ -421,6 +447,15 @@ export async function sendPaymentNotification(siteId: number, orderId: number) {
       );
     } catch (error) {
       console.error('Failed to send Telegram notification:', error);
+    }
+  }
+
+  // Send email notification to customer
+  if (settings.smtpHost && settings.smtpFrom) {
+    try {
+      await sendPaymentEmail(siteId, orderId);
+    } catch (error) {
+      console.error('Failed to send payment email:', error);
     }
   }
 }
@@ -477,6 +512,15 @@ ${lowStock.length >= 10 ? '...и другие' : ''}
       );
     } catch (error) {
       console.error('Failed to send Telegram notification:', error);
+    }
+  }
+
+  // Send email notification to admin
+  if (settings.smtpHost && settings.smtpFrom) {
+    try {
+      await sendLowStockEmail(siteId);
+    } catch (error) {
+      console.error('Failed to send low stock email:', error);
     }
   }
 }
