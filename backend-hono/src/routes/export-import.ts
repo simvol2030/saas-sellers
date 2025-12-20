@@ -17,8 +17,69 @@ import { siteMiddleware, requireSite } from '../middleware/site.js';
 import matter from 'gray-matter';
 import archiver from 'archiver';
 import { Readable, PassThrough } from 'stream';
+import { existsSync, createReadStream } from 'fs';
+import { join } from 'path';
 
 const exportImport = new Hono();
+
+// ===========================================
+// HELPER FUNCTIONS
+// ===========================================
+
+const MEDIA_DIR = process.env.MEDIA_DIR || join(process.cwd(), '..', 'data', 'media');
+
+// Regex to find local media URLs in sections
+const LOCAL_MEDIA_REGEX = /\/api\/media\/site-(\d+)\/(images|videos|documents)\/([^"'\s]+)/g;
+
+/**
+ * Extract all local media file paths from sections JSON
+ */
+function extractMediaPaths(sections: any[]): string[] {
+  const paths: string[] = [];
+  const jsonStr = JSON.stringify(sections);
+  let match;
+
+  // Reset regex lastIndex
+  LOCAL_MEDIA_REGEX.lastIndex = 0;
+
+  while ((match = LOCAL_MEDIA_REGEX.exec(jsonStr)) !== null) {
+    const [, siteId, type, filename] = match;
+    paths.push(`site-${siteId}/${type}/${filename}`);
+  }
+
+  return [...new Set(paths)];
+}
+
+/**
+ * Build page map for hierarchy lookup
+ */
+function buildPageMap(pages: any[]): Map<number, any> {
+  const map = new Map();
+  for (const page of pages) {
+    map.set(page.id, page);
+  }
+  return map;
+}
+
+/**
+ * Build full file path based on page hierarchy (up to 3 levels)
+ */
+function buildPageFilePath(page: any, pageMap: Map<number, any>): string {
+  const parts: string[] = [page.slug];
+  let current = page;
+  let depth = 0;
+  const maxDepth = 3;
+
+  while (current.parentId && depth < maxDepth) {
+    const parent = pageMap.get(current.parentId);
+    if (!parent) break;
+    parts.unshift(parent.slug);
+    current = parent;
+    depth++;
+  }
+
+  return `pages/${parts.join('/')}/${parts[parts.length - 1]}.md`;
+}
 
 // Apply middlewares
 exportImport.use('*', authMiddleware);
@@ -415,6 +476,12 @@ exportImport.get('/pages/export-all', async (c) => {
       return c.json({ error: 'No pages to export' }, 404);
     }
 
+    // Build page map for hierarchy lookup
+    const pageMap = buildPageMap(pages);
+
+    // Collect all media paths
+    const allMediaPaths: Set<string> = new Set();
+
     // Create a pass-through stream
     const passThrough = new PassThrough();
 
@@ -462,22 +529,46 @@ exportImport.get('/pages/export-all', async (c) => {
         } catch {}
       }
 
+      let sections: any[] = [];
       try {
-        frontmatter.sections = JSON.parse(page.sections);
+        sections = JSON.parse(page.sections);
+        frontmatter.sections = sections;
       } catch {
         frontmatter.sections = [];
       }
 
+      // Extract media paths from sections
+      const mediaPaths = extractMediaPaths(sections);
+      mediaPaths.forEach(path => allMediaPaths.add(path));
+
       const markdown = matter.stringify('', frontmatter);
 
-      // Determine file path based on hierarchy
-      let filePath = `${page.slug}.md`;
-      if (page.parent) {
-        filePath = `${page.parent.slug}/${page.slug}.md`;
-      }
-
+      // Build file path with deep hierarchy support
+      const filePath = buildPageFilePath(page, pageMap);
       archive.append(markdown, { name: filePath });
     }
+
+    // Add media files to archive
+    let mediaCount = 0;
+    for (const mediaPath of allMediaPaths) {
+      const fullPath = join(MEDIA_DIR, mediaPath);
+      if (existsSync(fullPath)) {
+        const stream = createReadStream(fullPath);
+        archive.append(stream, { name: `media/${mediaPath}` });
+        mediaCount++;
+      } else {
+        console.warn(`Media file not found: ${fullPath}`);
+      }
+    }
+
+    // Add manifest
+    const manifest = {
+      exportedAt: new Date().toISOString(),
+      pagesCount: pages.length,
+      mediaCount,
+      siteId,
+    };
+    archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
 
     // Finalize the archive
     archive.finalize();
