@@ -1,0 +1,23 @@
+---
+/**
+ * Admin New Product
+ *
+ * Create a new product
+ */
+import Admin from '../../../layouts/Admin.astro';
+import ProductEditor from '../../../components/admin/ProductEditor.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Новый товар">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <ProductEditor client:load />
+</Admin>

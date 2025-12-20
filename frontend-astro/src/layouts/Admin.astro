@@ -37,6 +37,10 @@ const navItems = [
   { href: '/admin/media', label: 'Медиа', icon: 'media', section: 'media' },
   { href: '/admin/theme', label: 'Дизайн', icon: 'theme', section: null }, // uses editorOrAdmin, not section-based
   { href: '/admin/settings', label: 'Настройки', icon: 'settings', section: 'settings' },
+  // Phase 4: E-commerce
+  { href: '/admin/products', label: 'Товары', icon: 'products', section: 'products' },
+  { href: '/admin/categories', label: 'Категории', icon: 'categories', section: 'products' },
+  { href: '/admin/currencies', label: 'Валюты', icon: 'currencies', section: 'currencies' },
 ];
 
 const currentPath = Astro.url.pathname;
@@ -311,6 +315,10 @@ const currentPath = Astro.url.pathname;
     .nav-icon[data-icon="settings"]::before { content: '⚙️'; }
     .nav-icon[data-icon="users"]::before { content: '👥'; }
     .nav-icon[data-icon="external"]::before { content: '🔗'; }
+    /* Phase 4: E-commerce icons */
+    .nav-icon[data-icon="products"]::before { content: '🛍️'; }
+    .nav-icon[data-icon="categories"]::before { content: '📁'; }
+    .nav-icon[data-icon="currencies"]::before { content: '💱'; }
 
     .nav-separator {
       height: 1px;
