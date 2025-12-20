@@ -42,6 +42,10 @@ const navItems = [
   { href: '/admin/categories', label: 'Категории', icon: 'categories', section: 'products' },
   { href: '/admin/currencies', label: 'Валюты', icon: 'currencies', section: 'currencies' },
   { href: '/admin/orders', label: 'Заказы', icon: 'orders', section: 'orders' },
+  // Phase 4+5: Payments & Additional
+  { href: '/admin/payments', label: 'Платежи', icon: 'payments', section: 'payments' },
+  { href: '/admin/promo', label: 'Промокоды', icon: 'promo', section: 'promo' },
+  { href: '/admin/notifications', label: 'Уведомления', icon: 'notifications', section: 'notifications' },
 ];
 
 const currentPath = Astro.url.pathname;
@@ -321,6 +325,10 @@ const currentPath = Astro.url.pathname;
     .nav-icon[data-icon="categories"]::before { content: '📁'; }
     .nav-icon[data-icon="currencies"]::before { content: '💱'; }
     .nav-icon[data-icon="orders"]::before { content: '📦'; }
+    /* Phase 4+5: Payments & Additional icons */
+    .nav-icon[data-icon="payments"]::before { content: '💳'; }
+    .nav-icon[data-icon="promo"]::before { content: '🎟️'; }
+    .nav-icon[data-icon="notifications"]::before { content: '🔔'; }
 
     .nav-separator {
       height: 1px;

@@ -32,6 +32,14 @@
     promoCode: string;
   }
 
+  interface PaymentMethod {
+    id: number;
+    type: string;
+    name: string;
+    icon: string;
+    description: string;
+  }
+
   // State
   let step = $state(1); // 1: Cart, 2: Shipping, 3: Review
   let loading = $state(false);
@@ -42,6 +50,10 @@
   // Shipping methods
   let shippingMethods = $state<ShippingMethod[]>([]);
   let selectedShippingId = $state<number | null>(null);
+
+  // Payment methods
+  let paymentMethods = $state<PaymentMethod[]>([]);
+  let selectedPaymentType = $state<string>('manual');
 
   // Form
   let form = $state<CheckoutForm>({
@@ -83,6 +95,23 @@
       }
     } catch (e) {
       console.error('Failed to load shipping methods:', e);
+    }
+  }
+
+  // Load payment methods
+  async function loadPaymentMethods() {
+    try {
+      const res = await fetch('/api/payments/methods');
+      if (res.ok) {
+        const data = await res.json();
+        paymentMethods = data.methods || [];
+        // Select first method or manual if none
+        if (paymentMethods.length > 0) {
+          selectedPaymentType = paymentMethods[0].type;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load payment methods:', e);
     }
   }
 
@@ -139,6 +168,8 @@
         return;
       }
 
+      // Load payment methods
+      await loadPaymentMethods();
       step = 3;
     }
   }
@@ -180,16 +211,22 @@
           },
           shippingMethodId: selectedShippingId,
           promoCode: form.promoCode || undefined,
-          paymentMethod: 'manual',
+          paymentMethod: selectedPaymentType,
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
         orderNumber = data.order.orderNumber;
-        orderComplete = true;
-        // Refresh cart
-        await fetchCart();
+
+        // If online payment, create payment and redirect
+        if (selectedPaymentType !== 'manual' && selectedPaymentType !== 'cash') {
+          await initiatePayment(data.order.id, data.order.totalAmount);
+        } else {
+          // Manual/cash payment - show success
+          orderComplete = true;
+          await fetchCart();
+        }
       } else {
         const errData = await res.json();
         error = errData.error || 'Не удалось создать заказ';
@@ -198,6 +235,46 @@
       error = e instanceof Error ? e.message : 'Ошибка сети';
     } finally {
       loading = false;
+    }
+  }
+
+  // Initiate online payment
+  async function initiatePayment(orderId: number, amount: number) {
+    try {
+      const res = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          amount,
+          currency: cartStore.currencyCode || 'RUB',
+          paymentType: selectedPaymentType,
+          description: `Заказ ${orderNumber}`,
+          returnUrl: `${window.location.origin}/orders/${orderNumber}?payment=success`,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.paymentUrl) {
+          // Redirect to payment page
+          window.location.href = data.paymentUrl;
+        } else {
+          // No redirect needed (e.g., Telegram Stars handled in-app)
+          orderComplete = true;
+          await fetchCart();
+        }
+      } else {
+        const errData = await res.json();
+        error = errData.error || 'Не удалось создать платёж';
+        // Order created but payment failed - show order number anyway
+        orderComplete = true;
+        await fetchCart();
+      }
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Ошибка оплаты';
+      orderComplete = true;
+      await fetchCart();
     }
   }
 
@@ -458,9 +535,9 @@
             </form>
           </div>
         {:else if step === 3}
-          <!-- Step 3: Review -->
+          <!-- Step 3: Review & Payment -->
           <div class="checkout-section">
-            <h2>Подтверждение заказа</h2>
+            <h2>Подтверждение и оплата</h2>
 
             <div class="review-section">
               <h3>Контактные данные</h3>
@@ -497,12 +574,54 @@
               {/if}
             </div>
 
+            <!-- Payment method selection -->
+            <div class="review-section">
+              <h3>Способ оплаты</h3>
+              <div class="payment-methods">
+                {#each paymentMethods as method (method.id)}
+                  <label class="payment-option" class:selected={selectedPaymentType === method.type}>
+                    <input
+                      type="radio"
+                      name="payment"
+                      value={method.type}
+                      bind:group={selectedPaymentType}
+                    />
+                    <span class="payment-icon">{method.icon}</span>
+                    <div class="payment-info">
+                      <span class="payment-name">{method.name}</span>
+                      <span class="payment-desc">{method.description}</span>
+                    </div>
+                  </label>
+                {/each}
+                <!-- Always show manual payment option -->
+                <label class="payment-option" class:selected={selectedPaymentType === 'manual'}>
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="manual"
+                    bind:group={selectedPaymentType}
+                  />
+                  <span class="payment-icon">📋</span>
+                  <div class="payment-info">
+                    <span class="payment-name">Оплата по счёту</span>
+                    <span class="payment-desc">Менеджер свяжется для оплаты</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             <div class="form-actions">
               <button class="btn btn-secondary" onclick={prevStep}>
                 Назад
               </button>
               <button class="btn btn-primary btn-large" onclick={submitOrder} disabled={loading}>
-                {loading ? 'Оформление...' : 'Оформить заказ'}
+                {#if loading}
+                  Оформление...
+                {:else if selectedPaymentType !== 'manual' && selectedPaymentType !== 'cash'}
+                  Перейти к оплате
+                {:else}
+                  Оформить заказ
+                {/if}
               </button>
             </div>
           </div>
@@ -851,6 +970,57 @@
 
   .shipping-price .free {
     color: var(--color-success);
+  }
+
+  /* Payment methods */
+  .payment-methods {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .payment-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .payment-option:hover {
+    border-color: var(--color-primary);
+  }
+
+  .payment-option.selected {
+    border-color: var(--color-primary);
+    background: var(--color-primary-light);
+  }
+
+  .payment-option input {
+    accent-color: var(--color-primary);
+  }
+
+  .payment-icon {
+    font-size: 1.5rem;
+  }
+
+  .payment-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .payment-name {
+    font-weight: var(--font-font-weight-medium);
+  }
+
+  .payment-desc {
+    font-size: var(--font-font-size-sm);
+    color: var(--color-text-muted);
   }
 
   /* Review */

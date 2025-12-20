@@ -1,0 +1,23 @@
+---
+/**
+ * Admin Promo Codes
+ *
+ * Manage promotional codes and discounts
+ */
+import Admin from '../../../layouts/Admin.astro';
+import PromoCodesList from '../../../components/admin/PromoCodesList.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Промокоды">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <PromoCodesList client:load />
+</Admin>
