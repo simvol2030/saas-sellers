@@ -27,6 +27,13 @@ import products from './routes/products.js';
 import { cart } from './routes/cart.js';
 import { shipping } from './routes/shipping.js';
 import { orders } from './routes/orders.js';
+// Phase 4: Payments
+import { payments } from './routes/payments.js';
+import { webhooks } from './routes/webhooks.js';
+// Phase 5: Additional features
+import { promoCodes } from './routes/promo-codes.js';
+import { productImportExport } from './routes/product-import-export.js';
+import { notifications } from './routes/notifications.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma, initDatabase } from './lib/db.js';
 
@@ -163,6 +170,15 @@ app.route('/api/admin/shipping', shipping);
 app.route('/api/shipping', shipping); // Public shipping methods
 app.route('/api/admin/orders', orders);
 app.route('/api/orders', orders); // Public order lookup + checkout
+// Phase 4: Payments
+app.route('/api/payments', payments);
+app.route('/api/admin/payments', payments); // Admin payment providers
+app.route('/api/webhooks', webhooks); // Payment webhooks
+// Phase 5: Additional features
+app.route('/api/promo', promoCodes); // Public promo validation
+app.route('/api/admin/promo', promoCodes); // Admin promo management
+app.route('/api/admin/products', productImportExport); // Import/export (adds /export, /import to products)
+app.route('/api/admin/notifications', notifications); // Notification settings
 
 // Error handler (must be last)
 app.onError(errorHandler);
