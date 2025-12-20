@@ -41,6 +41,7 @@ const navItems = [
   { href: '/admin/products', label: 'Товары', icon: 'products', section: 'products' },
   { href: '/admin/categories', label: 'Категории', icon: 'categories', section: 'products' },
   { href: '/admin/currencies', label: 'Валюты', icon: 'currencies', section: 'currencies' },
+  { href: '/admin/orders', label: 'Заказы', icon: 'orders', section: 'orders' },
 ];
 
 const currentPath = Astro.url.pathname;
@@ -319,6 +320,7 @@ const currentPath = Astro.url.pathname;
     .nav-icon[data-icon="products"]::before { content: '🛍️'; }
     .nav-icon[data-icon="categories"]::before { content: '📁'; }
     .nav-icon[data-icon="currencies"]::before { content: '💱'; }
+    .nav-icon[data-icon="orders"]::before { content: '📦'; }
 
     .nav-separator {
       height: 1px;
