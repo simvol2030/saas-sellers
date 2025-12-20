@@ -520,6 +520,7 @@ model Product {
   variants    ProductVariant[]
   attributes  ProductAttribute[]
   modifiers   ProductModifier[]  // Для кафе: добавки, топпинги
+  reviews     Review[]           // Отзывы на товар
   orderItems  OrderItem[]
   cartItems   CartItem[]
 
@@ -635,6 +636,37 @@ model ProductModifier {
 
   @@index([productId])
   @@map("product_modifiers")
+}
+
+// ==========================================
+// E-COMMERCE: REVIEWS
+// ==========================================
+
+model Review {
+  id          Int      @id @default(autoincrement())
+
+  productId   Int
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Author info
+  authorName  String
+  authorEmail String
+
+  // Review content
+  rating      Int      // 1-5
+  title       String?
+  content     String
+
+  // Status (pending, approved, rejected) - String instead of enum for SQLite
+  status      String   @default("pending")
+  isVerified  Boolean  @default(false)  // Verified purchase
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId])
+  @@index([status])
+  @@map("reviews")
 }
 
 // ==========================================
