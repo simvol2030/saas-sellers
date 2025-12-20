@@ -8,6 +8,8 @@
 - Управление доступом к секциям админ-панели
 - Расширяемая архитектура для будущих модулей
 
+---
+
 ## Current State Analysis
 
 ### Существующая система ролей
@@ -18,10 +20,16 @@ role: 'admin' | 'editor' | 'viewer'
 
 ### Текущий контроль доступа к сайтам
 ```typescript
-// backend-hono/src/middleware/site.ts
+// backend-hono/src/middleware/site.ts (line 88)
 if (user?.role === 'admin' || foundSite.ownerId === user?.id) {
   // has access
 }
+```
+
+### JWT Token Payload
+```typescript
+// backend-hono/src/lib/jwt.ts
+{ userId, email, role } // isSuperadmin NOT included
 ```
 
 ### Текущая схема User в Prisma
@@ -32,10 +40,7 @@ model User {
   password  String
   name      String?
   role      String    @default("editor")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  sessions  Session[]
-  sites     Site[]    @relation("SiteOwner")
+  // Missing: isSuperadmin, isActive, userSites
 }
 ```
 
@@ -57,7 +62,10 @@ model UserSite {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, siteId])
+  @@unique([userId, siteId], name: "userId_siteId")
+  @@index([userId])
+  @@index([siteId])
+  @@map("user_sites")
 }
 ```
 
@@ -75,8 +83,13 @@ model User {
   updatedAt    DateTime   @updatedAt
 
   sessions     Session[]
+  pages        Page[]
+  media        Media[]
   ownedSites   Site[]     @relation("SiteOwner")
   userSites    UserSite[]                     // NEW: site access
+  reusableBlocks ReusableBlock[]
+
+  @@map("users")
 }
 ```
 
@@ -121,13 +134,23 @@ export const DEFAULT_PERMISSIONS: UserPermissions = {
   media: true,
   settings: false,
 };
+
+// Full permissions for site owners
+export const FULL_PERMISSIONS: UserPermissions = {
+  pages: true,
+  blocks: true,
+  menus: true,
+  media: true,
+  settings: true,
+};
 ```
 
-#### 2.2 Permission Check Logic
+#### 2.2 Permission Check Logic (Priority Order)
 ```typescript
-// Superadmin: full access to everything
-// Site owner: full access to owned sites
-// UserSite: access defined by permissions JSON
+// 1. Superadmin: FULL access to everything, all sites
+// 2. Site owner: FULL access to owned sites only
+// 3. UserSite: Access defined by permissions JSON
+// 4. No access: 403 Forbidden
 ```
 
 ---
@@ -139,7 +162,7 @@ export const DEFAULT_PERMISSIONS: UserPermissions = {
 **File:** `backend-hono/prisma/schema.prisma`
 
 1. Add `isSuperadmin` and `isActive` to User
-2. Add UserSite model
+2. Add UserSite model with indexes
 3. Add relation to Site
 
 **Commands:**
@@ -150,119 +173,245 @@ npx prisma migrate dev --name add_user_management
 
 ### Step 2: Permission Library
 
-**File:** `backend-hono/src/lib/permissions.ts`
+**File:** `backend-hono/src/lib/permissions.ts` (NEW)
 
-Create permission constants and helper functions:
-- `ADMIN_SECTIONS` - list of sections
-- `DEFAULT_PERMISSIONS` - default for new users
-- `hasPermission(userSite, section)` - check access
-- `getAllPermissions()` - get all sections list
+```typescript
+export const ADMIN_SECTIONS = { ... };
+export type AdminSection = keyof typeof ADMIN_SECTIONS;
+export interface UserPermissions { [section: string]: boolean; }
+export const DEFAULT_PERMISSIONS: UserPermissions = { ... };
+export const FULL_PERMISSIONS: UserPermissions = { ... };
 
-### Step 3: Auth Middleware Update
+export function hasPermission(permissions: string, section: AdminSection): boolean {
+  try {
+    const parsed = JSON.parse(permissions);
+    return parsed[section] === true;
+  } catch {
+    return false;
+  }
+}
+
+export function getAllSections(): Array<{ key: AdminSection; label: string; icon: string }> {
+  return Object.entries(ADMIN_SECTIONS).map(([key, value]) => ({
+    key: key as AdminSection,
+    ...value
+  }));
+}
+```
+
+### Step 3: JWT Library Update
+
+**File:** `backend-hono/src/lib/jwt.ts`
+
+Update payload to include `isSuperadmin`:
+```typescript
+interface TokenPayload {
+  userId: number;
+  email: string;
+  role: string;
+  isSuperadmin: boolean;  // ADD
+}
+
+export async function generateTokenPair(payload: {
+  userId: number;
+  email: string;
+  role: string;
+  isSuperadmin: boolean;  // ADD
+}) { ... }
+
+export async function generateAccessToken(payload: {
+  userId: number;
+  email: string;
+  role: string;
+  isSuperadmin: boolean;  // ADD
+}) { ... }
+```
+
+### Step 4: Auth Middleware Update
 
 **File:** `backend-hono/src/middleware/auth.ts`
 
-Add:
-- `superadminOnly` middleware
-- Update `AuthUser` interface to include `isSuperadmin`
+```typescript
+export interface AuthUser {
+  id: number;
+  email: string;
+  role: string;
+  isSuperadmin: boolean;  // ADD
+  isActive: boolean;      // ADD
+}
 
-### Step 4: Site Middleware Update
+// NEW: Superadmin-only middleware
+export const superadminOnly = async (c: Context, next: Next) => {
+  const user = c.get('user');
+  if (!user?.isSuperadmin) {
+    return c.json({ error: 'Superadmin access required' }, 403);
+  }
+  await next();
+};
+
+// Update authMiddleware to extract isSuperadmin from token
+```
+
+### Step 5: Auth Routes Update
+
+**File:** `backend-hono/src/routes/auth.ts`
+
+#### 5.1 Login route updates:
+```typescript
+// Check isActive BEFORE password check
+if (!user.isActive) {
+  return c.json({
+    error: 'Account is disabled',
+    code: 'ACCOUNT_DISABLED',
+  }, 403);
+}
+
+// Include isSuperadmin in token generation
+const { accessToken, refreshToken } = await generateTokenPair({
+  userId: user.id,
+  email: user.email,
+  role: user.role,
+  isSuperadmin: user.isSuperadmin,  // ADD
+});
+
+// Include isSuperadmin in response
+return c.json({
+  user: {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    isSuperadmin: user.isSuperadmin,  // ADD
+  },
+  accessToken,
+  refreshToken,
+});
+```
+
+#### 5.2 Refresh route updates:
+```typescript
+// Include isSuperadmin in new access token
+const accessToken = await generateAccessToken({
+  userId: session.user.id,
+  email: session.user.email,
+  role: session.user.role,
+  isSuperadmin: session.user.isSuperadmin,  // ADD
+});
+```
+
+#### 5.3 Register route updates:
+```typescript
+// Change admin check to superadmin check
+if (!payload || payload.type !== 'access' || !payload.isSuperadmin) {
+  return c.json({
+    error: 'Superadmin access required',
+    code: 'SUPERADMIN_REQUIRED',
+  }, 403);
+}
+
+// First user gets isSuperadmin: true
+const user = await prisma.user.create({
+  data: {
+    email,
+    password: hashedPassword,
+    name,
+    role: isFirstUser ? 'admin' : role,
+    isSuperadmin: isFirstUser,  // ADD
+  },
+  ...
+});
+```
+
+#### 5.4 /me route updates:
+```typescript
+// Include isSuperadmin in response
+select: {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  isSuperadmin: true,  // ADD
+  createdAt: true,
+},
+```
+
+### Step 6: Site Middleware Update
 
 **File:** `backend-hono/src/middleware/site.ts`
 
-Update access check logic:
 ```typescript
-// Old:
+// Line 88 - Update access check:
+// OLD:
 if (user?.role === 'admin' || foundSite.ownerId === user?.id)
 
-// New:
-if (user?.isSuperadmin || foundSite.ownerId === user?.id || userHasSiteAccess(user.id, siteId))
+// NEW:
+if (user?.isSuperadmin || foundSite.ownerId === user?.id || await userHasSiteAccess(user.id, foundSite.id))
+
+// Add helper function:
+async function userHasSiteAccess(userId: number, siteId: number): Promise<boolean> {
+  const userSite = await prisma.userSite.findUnique({
+    where: { userId_siteId: { userId, siteId } }
+  });
+  return !!userSite;
+}
+
+// Line 104-111 - Update site query for non-superadmin:
+const userSite = await prisma.site.findFirst({
+  where: {
+    OR: [
+      { ownerId: user.id },
+      { userSites: { some: { userId: user.id } } },  // ADD
+      ...(user.isSuperadmin ? [{ isActive: true }] : []),  // CHANGE from role === 'admin'
+    ],
+  },
+  orderBy: { createdAt: 'asc' },
+});
 ```
 
-Add helper to check UserSite access.
-
-### Step 5: Users API Routes
-
-**File:** `backend-hono/src/routes/users.ts` (NEW)
-
-Endpoints:
-```
-GET    /api/admin/users          - List all users (superadmin only)
-GET    /api/admin/users/:id      - Get user details
-POST   /api/admin/users          - Create new user
-PUT    /api/admin/users/:id      - Update user
-DELETE /api/admin/users/:id      - Delete user
-POST   /api/admin/users/:id/sites - Assign sites to user
-DELETE /api/admin/users/:id/sites/:siteId - Remove site access
-PUT    /api/admin/users/:id/sites/:siteId/permissions - Update permissions
-```
-
-### Step 6: Register Routes
-
-**File:** `backend-hono/src/index.ts`
-
-Add users routes:
-```typescript
-import users from './routes/users.js';
-// ...
-app.route('/api/admin/users', users);
-```
-
-### Step 7: Frontend - Users Page
-
-**File:** `frontend-astro/src/pages/admin/users/index.astro` (NEW)
-
-Admin page for user management with Svelte components.
-
-### Step 8: Frontend - UsersList Component
-
-**File:** `frontend-astro/src/components/admin/UsersList.svelte` (NEW)
-
-Features:
-- Table of users with status
-- Create/edit user modal
-- Site assignment interface
-- Permission toggles per site
-
-### Step 9: Frontend - Navigation Update
-
-**File:** `frontend-astro/src/layouts/Admin.astro`
-
-Add conditional navigation item:
-```typescript
-// Only show for superadmin
-{user?.isSuperadmin && (
-  <a href="/admin/users">Пользователи</a>
-)}
-```
-
-### Step 10: Permission Middleware for Sections
+### Step 7: Permission Middleware
 
 **File:** `backend-hono/src/middleware/permissions.ts` (NEW)
 
 ```typescript
+import { Context, Next } from 'hono';
+import { prisma } from '../lib/db.js';
+import type { AdminSection } from '../lib/permissions.js';
+
 export const requireSection = (section: AdminSection) => {
   return async (c: Context, next: Next) => {
     const user = c.get('user');
-    const siteId = c.get('siteId');
+    const site = c.get('site');
 
-    // Superadmin or site owner - full access
+    if (!user || !site) {
+      return c.json({ error: 'Authentication required' }, 401);
+    }
+
+    // 1. Superadmin - full access
     if (user.isSuperadmin) {
       return next();
     }
 
-    // Check UserSite permissions
+    // 2. Site owner - full access to their site
+    if (site.ownerId === user.id) {
+      return next();
+    }
+
+    // 3. Check UserSite permissions
     const userSite = await prisma.userSite.findUnique({
-      where: { userId_siteId: { userId: user.id, siteId } }
+      where: { userId_siteId: { userId: user.id, siteId: site.id } }
     });
 
     if (!userSite) {
       return c.json({ error: 'No site access' }, 403);
     }
 
-    const permissions = JSON.parse(userSite.permissions);
+    const permissions = JSON.parse(userSite.permissions || '{}');
     if (!permissions[section]) {
-      return c.json({ error: 'Section access denied' }, 403);
+      return c.json({
+        error: 'Section access denied',
+        code: 'SECTION_DENIED',
+        section
+      }, 403);
     }
 
     return next();
@@ -270,56 +419,493 @@ export const requireSection = (section: AdminSection) => {
 };
 ```
 
-### Step 11: Apply Section Middleware to Routes
+### Step 8: Users API Routes
 
-Update existing routes to use `requireSection`:
+**File:** `backend-hono/src/routes/users.ts` (NEW)
+
+```typescript
+import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import bcrypt from 'bcryptjs';
+import { prisma } from '../lib/db.js';
+import { authMiddleware, superadminOnly } from '../middleware/auth.js';
+import { siteMiddleware } from '../middleware/site.js';
+import { DEFAULT_PERMISSIONS, FULL_PERMISSIONS, ADMIN_SECTIONS } from '../lib/permissions.js';
+
+const users = new Hono();
+
+// All routes require superadmin
+users.use('*', authMiddleware);
+users.use('*', superadminOnly);
+
+// Validation schemas
+const createUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().optional(),
+  role: z.enum(['admin', 'editor', 'viewer']).default('editor'),
+  isSuperadmin: z.boolean().default(false),
+});
+
+const updateUserSchema = z.object({
+  email: z.string().email().optional(),
+  name: z.string().optional(),
+  role: z.enum(['admin', 'editor', 'viewer']).optional(),
+  isActive: z.boolean().optional(),
+  isSuperadmin: z.boolean().optional(),
+});
+
+const assignSitesSchema = z.object({
+  siteIds: z.array(z.number()),
+  permissions: z.record(z.boolean()).optional(),
+});
+
+const updatePermissionsSchema = z.object({
+  permissions: z.record(z.boolean()),
+});
+
+// GET /api/admin/users - List all users
+users.get('/', async (c) => {
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      isSuperadmin: true,
+      isActive: true,
+      createdAt: true,
+      _count: { select: { ownedSites: true, userSites: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return c.json({ users });
+});
+
+// GET /api/admin/users/sections - Get available sections
+users.get('/sections', async (c) => {
+  return c.json({ sections: ADMIN_SECTIONS });
+});
+
+// GET /api/admin/users/:id - Get user details
+users.get('/:id', async (c) => {
+  const id = parseInt(c.req.param('id'));
+
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      isSuperadmin: true,
+      isActive: true,
+      createdAt: true,
+      ownedSites: { select: { id: true, name: true, slug: true } },
+      userSites: {
+        select: {
+          id: true,
+          permissions: true,
+          site: { select: { id: true, name: true, slug: true } },
+        },
+      },
+    },
+  });
+
+  if (!user) {
+    return c.json({ error: 'User not found' }, 404);
+  }
+
+  return c.json({ user });
+});
+
+// POST /api/admin/users - Create new user
+users.post('/', zValidator('json', createUserSchema), async (c) => {
+  const data = c.req.valid('json');
+
+  const existing = await prisma.user.findUnique({
+    where: { email: data.email },
+  });
+
+  if (existing) {
+    return c.json({ error: 'Email already exists' }, 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(data.password, 12);
+
+  const user = await prisma.user.create({
+    data: {
+      email: data.email,
+      password: hashedPassword,
+      name: data.name,
+      role: data.role,
+      isSuperadmin: data.isSuperadmin,
+    },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      isSuperadmin: true,
+      isActive: true,
+    },
+  });
+
+  return c.json({ user }, 201);
+});
+
+// PUT /api/admin/users/:id - Update user
+users.put('/:id', zValidator('json', updateUserSchema), async (c) => {
+  const id = parseInt(c.req.param('id'));
+  const currentUser = c.get('user');
+  const data = c.req.valid('json');
+
+  // Cannot modify yourself
+  if (id === currentUser.id) {
+    return c.json({ error: 'Cannot modify your own account' }, 400);
+  }
+
+  // Check if trying to remove last superadmin
+  if (data.isSuperadmin === false || data.isActive === false) {
+    const target = await prisma.user.findUnique({ where: { id } });
+    if (target?.isSuperadmin) {
+      const superadminCount = await prisma.user.count({
+        where: { isSuperadmin: true, isActive: true },
+      });
+      if (superadminCount <= 1) {
+        return c.json({ error: 'Cannot disable the last superadmin' }, 400);
+      }
+    }
+  }
+
+  // If disabling user, invalidate all sessions
+  if (data.isActive === false) {
+    await prisma.session.deleteMany({ where: { userId: id } });
+  }
+
+  const user = await prisma.user.update({
+    where: { id },
+    data,
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      isSuperadmin: true,
+      isActive: true,
+    },
+  });
+
+  return c.json({ user });
+});
+
+// DELETE /api/admin/users/:id - Delete user
+users.delete('/:id', async (c) => {
+  const id = parseInt(c.req.param('id'));
+  const currentUser = c.get('user');
+
+  if (id === currentUser.id) {
+    return c.json({ error: 'Cannot delete your own account' }, 400);
+  }
+
+  // Check if last superadmin
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (target?.isSuperadmin) {
+    const count = await prisma.user.count({
+      where: { isSuperadmin: true },
+    });
+    if (count <= 1) {
+      return c.json({ error: 'Cannot delete the last superadmin' }, 400);
+    }
+  }
+
+  await prisma.user.delete({ where: { id } });
+
+  return c.json({ message: 'User deleted' });
+});
+
+// POST /api/admin/users/:id/sites - Assign sites to user
+users.post('/:id/sites', zValidator('json', assignSitesSchema), async (c) => {
+  const userId = parseInt(c.req.param('id'));
+  const { siteIds, permissions } = c.req.valid('json');
+
+  const permissionsJson = JSON.stringify(permissions || DEFAULT_PERMISSIONS);
+
+  // Create UserSite records
+  await prisma.$transaction(
+    siteIds.map((siteId) =>
+      prisma.userSite.upsert({
+        where: { userId_siteId: { userId, siteId } },
+        create: { userId, siteId, permissions: permissionsJson },
+        update: { permissions: permissionsJson },
+      })
+    )
+  );
+
+  return c.json({ message: 'Sites assigned' });
+});
+
+// DELETE /api/admin/users/:id/sites/:siteId - Remove site access
+users.delete('/:id/sites/:siteId', async (c) => {
+  const userId = parseInt(c.req.param('id'));
+  const siteId = parseInt(c.req.param('siteId'));
+
+  await prisma.userSite.delete({
+    where: { userId_siteId: { userId, siteId } },
+  }).catch(() => null); // Ignore if not exists
+
+  return c.json({ message: 'Site access removed' });
+});
+
+// PUT /api/admin/users/:id/sites/:siteId/permissions - Update permissions
+users.put(
+  '/:id/sites/:siteId/permissions',
+  zValidator('json', updatePermissionsSchema),
+  async (c) => {
+    const userId = parseInt(c.req.param('id'));
+    const siteId = parseInt(c.req.param('siteId'));
+    const { permissions } = c.req.valid('json');
+
+    const userSite = await prisma.userSite.update({
+      where: { userId_siteId: { userId, siteId } },
+      data: { permissions: JSON.stringify(permissions) },
+    });
+
+    return c.json({ userSite });
+  }
+);
+
+export default users;
+```
+
+### Step 9: Users/Me Permissions Endpoint
+
+**File:** `backend-hono/src/routes/users.ts` (ADD to existing)
+
+```typescript
+// GET /api/admin/users/me/permissions - Get current user's permissions for current site
+// NOTE: This route does NOT require superadminOnly
+users.get('/me/permissions', authMiddleware, siteMiddleware, async (c) => {
+  const user = c.get('user');
+  const site = c.get('site');
+
+  if (!site) {
+    return c.json({ error: 'No site context' }, 400);
+  }
+
+  // Superadmin has all permissions
+  if (user.isSuperadmin) {
+    return c.json({
+      isSuperadmin: true,
+      isSiteOwner: false,
+      permissions: FULL_PERMISSIONS,
+      sections: ADMIN_SECTIONS,
+    });
+  }
+
+  // Site owner has all permissions
+  if (site.ownerId === user.id) {
+    return c.json({
+      isSuperadmin: false,
+      isSiteOwner: true,
+      permissions: FULL_PERMISSIONS,
+      sections: ADMIN_SECTIONS,
+    });
+  }
+
+  // Regular user - check UserSite
+  const userSite = await prisma.userSite.findUnique({
+    where: { userId_siteId: { userId: user.id, siteId: site.id } },
+  });
+
+  if (!userSite) {
+    return c.json({
+      isSuperadmin: false,
+      isSiteOwner: false,
+      permissions: {},
+      sections: ADMIN_SECTIONS,
+    });
+  }
+
+  return c.json({
+    isSuperadmin: false,
+    isSiteOwner: false,
+    permissions: JSON.parse(userSite.permissions || '{}'),
+    sections: ADMIN_SECTIONS,
+  });
+});
+```
+
+### Step 10: Register Routes
+
+**File:** `backend-hono/src/index.ts`
+
+```typescript
+import users from './routes/users.js';
+
+// Add BEFORE other admin routes (to avoid conflict with /:id patterns)
+app.route('/api/admin/users', users);
+```
+
+### Step 11: Update Existing Routes with requireSection
+
+**Files:** `pages.ts`, `blocks.ts`, `menus.ts`, `media.ts`, `settings.ts`
+
+Replace `editorOrAdmin` with `requireSection`:
 
 ```typescript
 // pages.ts
-pages.get('/', requireSection('pages'), async (c) => { ... });
+import { requireSection } from '../middleware/permissions.js';
+
+// REMOVE: pages.use('*', editorOrAdmin);
+// ADD:
+pages.use('*', requireSection('pages'));
 
 // blocks.ts
-blocks.get('/', requireSection('blocks'), async (c) => { ... });
+blocks.use('*', requireSection('blocks'));
 
 // menus.ts
-menus.get('/', requireSection('menus'), async (c) => { ... });
+menus.use('*', requireSection('menus'));
+
+// media.ts (if exists as separate file)
+media.use('*', requireSection('media'));
+
+// settings.ts
+settings.use('*', requireSection('settings'));
+```
+
+### Step 12: Frontend - Users Page
+
+**File:** `frontend-astro/src/pages/admin/users/index.astro` (NEW)
+
+```astro
+---
+import Admin from '../../../layouts/Admin.astro';
+import UsersList from '../../../components/admin/UsersList.svelte';
+---
+
+<Admin title="Пользователи">
+  <UsersList client:load />
+</Admin>
+```
+
+### Step 13: Frontend - UsersList Component
+
+**File:** `frontend-astro/src/components/admin/UsersList.svelte` (NEW)
+
+Svelte 5 component with:
+- Users table with columns: email, name, role, status, sites count, actions
+- Create user modal
+- Edit user modal
+- Site assignment panel
+- Permission toggles
+
+### Step 14: Frontend - Navigation Update
+
+**File:** `frontend-astro/src/layouts/Admin.astro`
+
+```typescript
+// In script section - fetch permissions
+const permissionsRes = await fetch('/api/admin/users/me/permissions', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'X-Site-ID': siteId
+  }
+});
+const { isSuperadmin, permissions } = await permissionsRes.json();
+
+// In navigation:
+{isSuperadmin && (
+  <a href="/admin/users" class="nav-item">
+    <Icon name="users" />
+    Пользователи
+  </a>
+)}
+
+// Hide sections without permission:
+{permissions.pages && (
+  <a href="/admin/pages">Страницы</a>
+)}
+{permissions.blocks && (
+  <a href="/admin/blocks">Блоки</a>
+)}
+// etc.
+```
+
+### Step 15: Frontend - Site Selector Update
+
+**File:** `frontend-astro/src/components/admin/SiteSelector.svelte`
+
+Update to show only accessible sites:
+```typescript
+// Fetch sites user has access to
+const res = await fetch('/api/admin/sites/accessible', ...);
+// This returns: owned sites + UserSite sites
+```
+
+### Step 16: Sites Accessible Endpoint
+
+**File:** `backend-hono/src/routes/sites.ts` (ADD)
+
+```typescript
+// GET /api/admin/sites/accessible - Get sites current user can access
+sites.get('/accessible', authMiddleware, async (c) => {
+  const user = c.get('user');
+
+  if (user.isSuperadmin) {
+    const allSites = await prisma.site.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, slug: true },
+    });
+    return c.json({ sites: allSites });
+  }
+
+  const sites = await prisma.site.findMany({
+    where: {
+      OR: [
+        { ownerId: user.id },
+        { userSites: { some: { userId: user.id } } },
+      ],
+      isActive: true,
+    },
+    select: { id: true, name: true, slug: true },
+  });
+
+  return c.json({ sites });
+});
 ```
 
 ---
 
-## Data Flow
-
-### Creating a New User
-
-1. Superadmin opens /admin/users
-2. Clicks "Create User"
-3. Fills form: email, password, name, role
-4. Backend creates User with `isSuperadmin: false`
-5. Superadmin selects sites for user
-6. Backend creates UserSite records with default permissions
-7. Superadmin can customize permissions per site
+## Data Flow Diagrams
 
 ### User Login Flow
-
-1. User logs in
-2. Backend returns user info including `isSuperadmin`
-3. Frontend stores in localStorage
-4. Navigation shows/hides items based on permissions
-5. API requests include X-Site-ID header
-6. Backend middleware checks UserSite permissions
+```
+1. POST /api/auth/login
+2. Check user.isActive → if false, return 403
+3. Verify password
+4. Generate tokens WITH isSuperadmin
+5. Return { user: { ...isSuperadmin }, tokens }
+6. Frontend stores user in localStorage
+7. Frontend fetches /me/permissions for current site
+8. Navigation renders based on permissions
+```
 
 ### Site Access Check Flow
-
 ```
-Request → authMiddleware → siteMiddleware → requireSection → route handler
-                              ↓
-                    Check: isSuperadmin?
-                              ↓ no
-                    Check: site.ownerId === user.id?
-                              ↓ no
-                    Check: UserSite exists with permission?
-                              ↓ no
-                    Return 403 Forbidden
+Request → authMiddleware → siteMiddleware → requireSection → handler
+              ↓                  ↓               ↓
+         Check JWT          Check access    Check section
+         Set user           Set site        permission
+              ↓                  ↓               ↓
+         user.isSuperadmin? → YES → allow
+              ↓ NO
+         site.ownerId === user.id? → YES → allow
+              ↓ NO
+         UserSite exists? → YES → check permissions[section]
+              ↓ NO
+         Return 403
 ```
 
 ---
@@ -327,53 +913,60 @@ Request → authMiddleware → siteMiddleware → requireSection → route handl
 ## Security Considerations
 
 1. **Superadmin Protection**
-   - First user is superadmin (already implemented)
+   - First user is superadmin
+   - Cannot delete/disable last superadmin
+   - Cannot modify your own superadmin status
    - Only superadmin can create other superadmins
-   - Cannot delete yourself
 
-2. **Password Security**
-   - bcrypt with cost 12 (already implemented)
-   - Minimum 8 characters (already implemented)
+2. **Session Invalidation**
+   - Disabling user immediately invalidates all sessions
+   - Password change invalidates all sessions
 
 3. **Permission Validation**
-   - Always check permissions server-side
-   - Never trust frontend permission state
-   - Validate siteId access before any operation
+   - Always check server-side
+   - Never trust frontend
+   - JWT includes isSuperadmin for fast checks
 
-4. **Audit Trail** (future consideration)
-   - Log user creation/modification
-   - Log permission changes
+4. **Input Validation**
+   - All endpoints use Zod schemas
+   - Password minimum 8 characters
 
 ---
 
 ## Migration Strategy
 
-### For Existing Users
-
-1. Run migration to add new fields
-2. First user (id=1) gets `isSuperadmin: true`
-3. Existing site owners get UserSite records with full permissions
-4. Other users remain unchanged
-
 ### Migration Script
 
+**File:** `backend-hono/prisma/seed-migration.ts` (RUN ONCE after migration)
+
 ```typescript
-// Run after schema migration
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
 async function migrateExistingUsers() {
-  // Set first user as superadmin
-  await prisma.user.updateMany({
-    where: { id: 1 },
-    data: { isSuperadmin: true }
+  // 1. Set first user as superadmin
+  const firstUser = await prisma.user.findFirst({
+    orderBy: { id: 'asc' },
   });
 
-  // Create UserSite for existing site owners
-  const sites = await prisma.site.findMany({
-    include: { owner: true }
-  });
+  if (firstUser) {
+    await prisma.user.update({
+      where: { id: firstUser.id },
+      data: { isSuperadmin: true },
+    });
+    console.log(`Set user ${firstUser.email} as superadmin`);
+  }
+
+  // 2. Create UserSite for existing site owners with full permissions
+  const sites = await prisma.site.findMany();
 
   for (const site of sites) {
-    await prisma.userSite.create({
-      data: {
+    await prisma.userSite.upsert({
+      where: {
+        userId_siteId: { userId: site.ownerId, siteId: site.id }
+      },
+      create: {
         userId: site.ownerId,
         siteId: site.id,
         permissions: JSON.stringify({
@@ -382,11 +975,19 @@ async function migrateExistingUsers() {
           menus: true,
           media: true,
           settings: true,
-        })
-      }
+        }),
+      },
+      update: {}, // No update needed
     });
+    console.log(`Created UserSite for owner of ${site.name}`);
   }
+
+  console.log('Migration complete');
 }
+
+migrateExistingUsers()
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());
 ```
 
 ---
@@ -397,8 +998,9 @@ async function migrateExistingUsers() {
 | File | Description |
 |------|-------------|
 | `backend-hono/src/lib/permissions.ts` | Permission constants and helpers |
-| `backend-hono/src/routes/users.ts` | Users API endpoints |
+| `backend-hono/src/routes/users.ts` | Users API endpoints (superadmin) |
 | `backend-hono/src/middleware/permissions.ts` | Section access middleware |
+| `backend-hono/prisma/seed-migration.ts` | One-time migration script |
 | `frontend-astro/src/pages/admin/users/index.astro` | Users admin page |
 | `frontend-astro/src/components/admin/UsersList.svelte` | User management UI |
 | `frontend-astro/src/components/admin/UserForm.svelte` | Create/edit user form |
@@ -408,14 +1010,17 @@ async function migrateExistingUsers() {
 | File | Changes |
 |------|---------|
 | `backend-hono/prisma/schema.prisma` | Add UserSite, update User |
-| `backend-hono/src/middleware/auth.ts` | Add superadminOnly |
-| `backend-hono/src/middleware/site.ts` | Update access logic |
+| `backend-hono/src/lib/jwt.ts` | Add isSuperadmin to payload |
+| `backend-hono/src/middleware/auth.ts` | Add superadminOnly, update AuthUser |
+| `backend-hono/src/middleware/site.ts` | Update access logic for UserSite |
+| `backend-hono/src/routes/auth.ts` | Add isActive check, isSuperadmin to responses |
+| `backend-hono/src/routes/sites.ts` | Add /accessible endpoint |
 | `backend-hono/src/index.ts` | Register users routes |
-| `backend-hono/src/routes/pages.ts` | Add requireSection |
-| `backend-hono/src/routes/blocks.ts` | Add requireSection |
-| `backend-hono/src/routes/menus.ts` | Add requireSection |
+| `backend-hono/src/routes/pages.ts` | Replace editorOrAdmin with requireSection |
+| `backend-hono/src/routes/blocks.ts` | Replace editorOrAdmin with requireSection |
+| `backend-hono/src/routes/menus.ts` | Replace editorOrAdmin with requireSection |
+| `backend-hono/src/routes/settings.ts` | Add requireSection |
 | `frontend-astro/src/layouts/Admin.astro` | Conditional nav items |
-| `frontend-astro/src/lib/api.ts` | Store superadmin flag |
 
 ---
 
@@ -424,159 +1029,49 @@ async function migrateExistingUsers() {
 - [ ] Superadmin can create users
 - [ ] Superadmin can assign sites to users
 - [ ] Superadmin can set permissions per site
-- [ ] User without site access cannot see site
+- [ ] User without site access cannot see site in dropdown
 - [ ] User without section permission gets 403
+- [ ] User without section permission doesn't see nav item
 - [ ] Site owner has full access to owned site
-- [ ] First user is superadmin
+- [ ] First user is superadmin after migration
 - [ ] Navigation hides /admin/users from non-superadmins
 - [ ] Cannot delete own account
+- [ ] Cannot disable last superadmin
 - [ ] Disabled user cannot login
+- [ ] Disabled user's sessions are invalidated
 - [ ] Permission changes take effect immediately
+- [ ] JWT contains isSuperadmin flag
+- [ ] Refresh token returns correct isSuperadmin
 
 ---
 
-## Estimated Implementation Order
+## FINAL AUDIT RESULTS
 
-1. **Database** - Schema migration (15 min)
-2. **Backend Core** - Permission lib + middleware (30 min)
-3. **Backend Routes** - Users API (45 min)
-4. **Apply Section Middleware** - Update existing routes (20 min)
-5. **Frontend Page** - Users admin page (30 min)
-6. **Frontend Components** - UsersList, UserForm, SitePermissions (60 min)
-7. **Frontend Navigation** - Conditional items (10 min)
-8. **Testing** - Full flow verification (30 min)
-9. **Migration Script** - Handle existing data (15 min)
+### Issues Found and Fixed in Plan:
 
----
+| # | Severity | Issue | Fix Location |
+|---|----------|-------|--------------|
+| 1 | CRITICAL | JWT payload missing isSuperadmin | Step 3 |
+| 2 | CRITICAL | Refresh token not including isSuperadmin | Step 5.2 |
+| 3 | CRITICAL | isActive not checked on login | Step 5.1 |
+| 4 | HIGH | Session not invalidated when user disabled | Step 8 (PUT /:id) |
+| 5 | HIGH | Register route checks role instead of isSuperadmin | Step 5.3 |
+| 6 | HIGH | Site middleware checks role instead of isSuperadmin | Step 6 |
+| 7 | HIGH | /me endpoint missing isSuperadmin | Step 5.4 |
+| 8 | MEDIUM | Missing /me/permissions endpoint | Step 9 |
+| 9 | MEDIUM | Missing /sites/accessible endpoint | Step 16 |
+| 10 | MEDIUM | requireSection missing site owner check | Step 7 |
+| 11 | MEDIUM | Last superadmin protection missing | Step 8 |
+| 12 | LOW | UserSite missing indexes | Step 1.1 |
+| 13 | LOW | Migration script upsert | Migration Script |
 
-## Notes
-
-- Keeping existing `role` field for backwards compatibility
-- `isSuperadmin` is a separate flag, not a role value
-- Permissions stored as JSON string for flexibility
-- Section list in `permissions.ts` is single source of truth
-
----
-
-## AUDIT RESULTS
-
-### Issue #1: Missing auth.ts routes update (HIGH)
-**Problem:** Plan mentions updating middleware but doesn't update auth.ts routes to return `isSuperadmin` in login response.
-**Fix:** Add Step 3.1 - Update auth.ts routes:
-```typescript
-// In POST /login response:
-return c.json({
-  user: {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    isSuperadmin: user.isSuperadmin, // ADD THIS
-  },
-  accessToken,
-  refreshToken,
-});
-```
-
-### Issue #2: Missing frontend token storage update (HIGH)
-**Problem:** Plan mentions storing `isSuperadmin` but doesn't specify where/how.
-**Fix:** Update Step 7 - Add to login page handling:
-```typescript
-// frontend-astro/src/pages/admin/login.astro (or login handler)
-localStorage.setItem('user', JSON.stringify(data.user)); // includes isSuperadmin
-```
-
-### Issue #3: Route middleware application strategy unclear (MEDIUM)
-**Problem:** Current routes use `pages.use('*', editorOrAdmin)` but plan suggests per-route `requireSection`.
-**Fix:** Clarify that `requireSection` REPLACES `editorOrAdmin` for section-based routes:
-```typescript
-// Before:
-pages.use('*', editorOrAdmin);
-
-// After:
-pages.use('*', requireSection('pages'));
-// Remove editorOrAdmin - permission check is now in requireSection
-```
-
-### Issue #4: isActive check missing in login flow (HIGH)
-**Problem:** Adding `isActive` field but not checking it during login.
-**Fix:** Add to Step 3.1 - Update login route:
-```typescript
-// In POST /login:
-if (!user.isActive) {
-  return c.json({
-    error: 'Account is disabled',
-    code: 'ACCOUNT_DISABLED',
-  }, 403);
-}
-```
-
-### Issue #5: Site owner check needs update in requireSection (MEDIUM)
-**Problem:** `requireSection` only checks superadmin but not site owner.
-**Fix:** Update Step 10:
-```typescript
-export const requireSection = (section: AdminSection) => {
-  return async (c: Context, next: Next) => {
-    const user = c.get('user');
-    const site = c.get('site');
-
-    // Superadmin - full access
-    if (user.isSuperadmin) {
-      return next();
-    }
-
-    // Site owner - full access to their site
-    if (site && site.ownerId === user.id) {  // ADD THIS CHECK
-      return next();
-    }
-
-    // Check UserSite permissions
-    // ... rest of the code
-  };
-};
-```
-
-### Issue #6: UserSite unique constraint name (LOW)
-**Problem:** Prisma generates compound unique name as `userId_siteId` but this should be verified.
-**Fix:** Explicitly name the constraint:
-```prisma
-@@unique([userId, siteId], name: "userId_siteId")
-```
-
-### Issue #7: Missing `/api/admin/users/me/permissions` endpoint (MEDIUM)
-**Problem:** Frontend needs to know current user's permissions for current site to show/hide nav items.
-**Fix:** Add endpoint:
-```
-GET /api/admin/users/me/permissions - Get current user's permissions for current site
-```
-Response:
-```json
-{
-  "isSuperadmin": false,
-  "isSiteOwner": true,
-  "permissions": { "pages": true, "blocks": true, ... }
-}
-```
-
-### Issue #8: Migration script may fail on duplicate UserSite (LOW)
-**Problem:** If owner already has UserSite record, migration script will fail on unique constraint.
-**Fix:** Use upsert instead of create:
-```typescript
-await prisma.userSite.upsert({
-  where: { userId_siteId: { userId: site.ownerId, siteId: site.id } },
-  create: { userId: site.ownerId, siteId: site.id, permissions: '...' },
-  update: {} // no update needed
-});
-```
-
----
-
-## AUDIT SUMMARY
+### Audit Summary
 
 | Severity | Count | Status |
 |----------|-------|--------|
-| HIGH     | 3     | Fixes documented |
-| MEDIUM   | 3     | Fixes documented |
-| LOW      | 2     | Fixes documented |
+| CRITICAL | 3 | ✅ Fixed in plan |
+| HIGH | 4 | ✅ Fixed in plan |
+| MEDIUM | 4 | ✅ Fixed in plan |
+| LOW | 2 | ✅ Fixed in plan |
 
-**Conclusion:** Plan is viable with documented fixes. All issues are addressable during implementation.
+**Conclusion:** Plan is complete with all identified issues addressed. Ready for implementation.
