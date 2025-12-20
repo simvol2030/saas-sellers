@@ -21,9 +21,28 @@ import exportImport from './routes/export-import.js';
 // Phase 3: User management
 import users from './routes/users.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { prisma } from './lib/db.js';
+import { prisma, initDatabase } from './lib/db.js';
 
 dotenv.config();
+
+// ===========================================
+// CORS Configuration
+// ===========================================
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+function getCorsOrigin(): string | string[] {
+  if (!IS_PRODUCTION) {
+    return '*'; // Allow all in development
+  }
+
+  if (ALLOWED_ORIGINS.length === 0) {
+    console.warn('⚠️ ALLOWED_ORIGINS not set in production!');
+    return []; // Block all cross-origin in production without config
+  }
+
+  return ALLOWED_ORIGINS;
+}
 
 const app = new Hono();
 const PORT = parseInt(process.env.PORT || '3001');
@@ -34,16 +53,48 @@ app.use('*', logger());
 // Security middleware
 app.use('*', secureHeaders());
 app.use('*', cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
-  credentials: true
+  origin: getCorsOrigin(),
+  credentials: true,
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Site-ID'],
+  exposeHeaders: ['Content-Length', 'X-Request-Id'],
+  maxAge: 86400, // 24 hours
 }));
 
-// Rate limiting
+// ===========================================
+// Rate Limiting
+// ===========================================
+
+// Strict rate limiting for auth routes (brute-force protection)
+app.use('/api/auth/login', rateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 5, // Only 5 login attempts per 15 minutes
+  standardHeaders: 'draft-6',
+  keyGenerator: (c) => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
+  message: { error: 'Too many login attempts, please try again later', code: 'RATE_LIMITED' },
+}));
+
+app.use('/api/auth/register', rateLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 3, // Only 3 registration attempts per hour
+  standardHeaders: 'draft-6',
+  keyGenerator: (c) => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
+  message: { error: 'Too many registration attempts, please try again later', code: 'RATE_LIMITED' },
+}));
+
+app.use('/api/auth/refresh', rateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  limit: 10, // 10 refresh attempts per minute
+  standardHeaders: 'draft-6',
+  keyGenerator: (c) => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
+}));
+
+// General API rate limiting
 app.use('/api/*', rateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 1000, // 100 requests per window
+  limit: IS_PRODUCTION ? 500 : 2000, // Stricter in production
   standardHeaders: 'draft-6',
-  keyGenerator: (c) => c.req.header('x-forwarded-for') ?? 'unknown'
+  keyGenerator: (c) => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
 }));
 
 // Health check
@@ -97,14 +148,32 @@ app.route('/api/menus', menus); // Public menu access
 // Error handler (must be last)
 app.onError(errorHandler);
 
-// Start server
-const server = serve({
-  fetch: app.fetch,
-  port: PORT
-});
+// ===========================================
+// Server Startup
+// ===========================================
 
-console.log(`Hono server running on http://localhost:${PORT}`);
-console.log(`Health check: http://localhost:${PORT}/health`);
+async function startServer() {
+  // Initialize database with SQLite optimizations (WAL mode, etc.)
+  await initDatabase();
+
+  // Start HTTP server
+  const server = serve({
+    fetch: app.fetch,
+    port: PORT
+  });
+
+  console.log(`🚀 Hono server running on http://localhost:${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔒 Environment: ${IS_PRODUCTION ? 'production' : 'development'}`);
+
+  return server;
+}
+
+// Start the server
+startServer().catch((error) => {
+  console.error('❌ Failed to start server:', error);
+  process.exit(1);
+});
 
 // Graceful shutdown
 const shutdown = async () => {
