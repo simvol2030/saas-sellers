@@ -24,6 +24,9 @@ import users from './routes/users.js';
 import currencies from './routes/currencies.js';
 import categories from './routes/categories.js';
 import products from './routes/products.js';
+import { cart } from './routes/cart.js';
+import { shipping } from './routes/shipping.js';
+import { orders } from './routes/orders.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma, initDatabase } from './lib/db.js';
 
@@ -155,6 +158,11 @@ app.route('/api/admin/categories', categories);
 app.route('/api/categories', categories); // Public categories (uses /public endpoint)
 app.route('/api/admin/products', products);
 app.route('/api/products', products); // Public products (uses /public endpoint)
+app.route('/api/cart', cart); // Shopping cart
+app.route('/api/admin/shipping', shipping);
+app.route('/api/shipping', shipping); // Public shipping methods
+app.route('/api/admin/orders', orders);
+app.route('/api/orders', orders); // Public order lookup + checkout
 
 // Error handler (must be last)
 app.onError(errorHandler);

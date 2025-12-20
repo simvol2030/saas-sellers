@@ -685,4 +685,188 @@ products.post('/bulk-delete', requireSite, requireSection('products'), zValidato
   return c.json({ deleted: result.count });
 });
 
+// =============================================
+// Additional Public Endpoints
+// =============================================
+
+// GET /api/products/public/featured - Featured products
+products.get('/public/featured', publicSiteMiddleware, async (c) => {
+  const siteId = c.get('siteId');
+  const limit = Math.min(parseInt(c.req.query('limit') || '8'), 20);
+
+  if (!siteId) {
+    return c.json({ error: 'Site ID required' }, 400);
+  }
+
+  const products = await prisma.product.findMany({
+    where: {
+      siteId,
+      status: 'published',
+      featured: true,
+    },
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+      images: { orderBy: { position: 'asc' }, take: 1 },
+    },
+    orderBy: { position: 'asc' },
+    take: limit,
+  });
+
+  type FeaturedProduct = typeof products[number];
+  const result = products.map((p: FeaturedProduct) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    shortDesc: p.shortDesc,
+    prices: JSON.parse(p.prices),
+    comparePrice: p.comparePrice,
+    category: p.category,
+    image: p.images[0]?.url || null,
+  }));
+
+  return c.json({ products: result });
+});
+
+// GET /api/products/public/search - Search products
+products.get('/public/search', publicSiteMiddleware, async (c) => {
+  const siteId = c.get('siteId');
+  const q = c.req.query('q') || '';
+  const limit = Math.min(parseInt(c.req.query('limit') || '10'), 50);
+
+  if (!siteId) {
+    return c.json({ error: 'Site ID required' }, 400);
+  }
+
+  if (q.length < 2) {
+    return c.json({ products: [] });
+  }
+
+  const products = await prisma.product.findMany({
+    where: {
+      siteId,
+      status: 'published',
+      OR: [
+        { name: { contains: q } },
+        { description: { contains: q } },
+        { sku: { contains: q } },
+      ],
+    },
+    include: {
+      images: { orderBy: { position: 'asc' }, take: 1 },
+    },
+    take: limit,
+  });
+
+  type SearchProduct = typeof products[number];
+  const result = products.map((p: SearchProduct) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    prices: JSON.parse(p.prices),
+    image: p.images[0]?.url || null,
+  }));
+
+  return c.json({ products: result });
+});
+
+// GET /api/products/public/category/:slug - Products by category slug
+products.get('/public/category/:slug', publicSiteMiddleware, async (c) => {
+  const siteId = c.get('siteId');
+  const categorySlug = c.req.param('slug');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1'));
+  const limit = Math.min(parseInt(c.req.query('limit') || '20'), 100);
+
+  if (!siteId) {
+    return c.json({ error: 'Site ID required' }, 400);
+  }
+
+  // Find category
+  const category = await prisma.productCategory.findFirst({
+    where: { siteId, slug: categorySlug, isActive: true },
+    include: {
+      parent: { select: { id: true, name: true, slug: true } },
+      children: {
+        where: { isActive: true },
+        select: { id: true, name: true, slug: true, image: true },
+        orderBy: { position: 'asc' },
+      },
+    },
+  });
+
+  if (!category) {
+    return c.json({ error: 'Category not found' }, 404);
+  }
+
+  // Get all child category IDs (for including products from subcategories)
+  const categoryIds = [category.id];
+  async function getChildIds(parentId: number) {
+    const children = await prisma.productCategory.findMany({
+      where: { parentId, isActive: true },
+      select: { id: true },
+    });
+    for (const child of children) {
+      categoryIds.push(child.id);
+      await getChildIds(child.id);
+    }
+  }
+  await getChildIds(category.id);
+
+  // Count and fetch products
+  const total = await prisma.product.count({
+    where: {
+      siteId,
+      status: 'published',
+      categoryId: { in: categoryIds },
+    },
+  });
+
+  const products = await prisma.product.findMany({
+    where: {
+      siteId,
+      status: 'published',
+      categoryId: { in: categoryIds },
+    },
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+      images: { orderBy: { position: 'asc' }, take: 1 },
+    },
+    orderBy: { position: 'asc' },
+    skip: (page - 1) * limit,
+    take: limit,
+  });
+
+  type CategoryProduct = typeof products[number];
+  const result = products.map((p: CategoryProduct) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    shortDesc: p.shortDesc,
+    prices: JSON.parse(p.prices),
+    comparePrice: p.comparePrice,
+    category: p.category,
+    image: p.images[0]?.url || null,
+  }));
+
+  return c.json({
+    category: {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      image: category.image,
+      metaTitle: category.metaTitle,
+      metaDescription: category.metaDescription,
+      parent: category.parent,
+      children: category.children,
+    },
+    products: result,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  });
+});
+
 export default products;
