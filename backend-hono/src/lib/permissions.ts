@@ -14,8 +14,12 @@ export const ADMIN_SECTIONS = {
   media: { label: 'Медиа', icon: 'image' },
   settings: { label: 'Настройки', icon: 'settings' },
 
+  // Phase 4: E-commerce sections
+  products: { label: 'Товары', icon: 'shopping-cart' },
+  orders: { label: 'Заказы', icon: 'package' },
+  currencies: { label: 'Валюты', icon: 'currency' },
+
   // Future sections (uncomment when needed)
-  // ecommerce: { label: 'E-commerce', icon: 'shopping-cart' },
   // forms: { label: 'Формы', icon: 'mail' },
   // analytics: { label: 'Аналитика', icon: 'bar-chart' },
 } as const;
@@ -33,6 +37,9 @@ export const DEFAULT_PERMISSIONS: UserPermissions = {
   menus: true,
   media: true,
   settings: false,
+  products: false,
+  orders: false,
+  currencies: false,
 };
 
 // Full permissions for site owners and superadmins
@@ -42,6 +49,9 @@ export const FULL_PERMISSIONS: UserPermissions = {
   menus: true,
   media: true,
   settings: true,
+  products: true,
+  orders: true,
+  currencies: true,
 };
 
 /**

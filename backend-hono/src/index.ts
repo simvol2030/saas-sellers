@@ -20,6 +20,10 @@ import menus from './routes/menus.js';
 import exportImport from './routes/export-import.js';
 // Phase 3: User management
 import users from './routes/users.js';
+// Phase 4: E-commerce
+import currencies from './routes/currencies.js';
+import categories from './routes/categories.js';
+import products from './routes/products.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma, initDatabase } from './lib/db.js';
 
@@ -144,6 +148,13 @@ app.route('/api/admin/media/folders', mediaFolders);
 app.route('/api/admin/blocks', blocks);
 app.route('/api/admin/menus', menus);
 app.route('/api/menus', menus); // Public menu access
+// Phase 4: E-commerce routes
+app.route('/api/admin/currencies', currencies);
+app.route('/api/currencies', currencies); // Public currencies (uses /public endpoint)
+app.route('/api/admin/categories', categories);
+app.route('/api/categories', categories); // Public categories (uses /public endpoint)
+app.route('/api/admin/products', products);
+app.route('/api/products', products); // Public products (uses /public endpoint)
 
 // Error handler (must be last)
 app.onError(errorHandler);
