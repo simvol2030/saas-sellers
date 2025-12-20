@@ -361,6 +361,9 @@
     </div>
 
     <div class="toolbar-actions">
+      <a href="/admin/products/import" class="btn btn-secondary">
+        📥 Импорт/Экспорт
+      </a>
       <a href="/admin/products/new" class="btn btn-primary">
         ➕ Добавить товар
       </a>
