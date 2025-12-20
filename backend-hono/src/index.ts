@@ -18,6 +18,8 @@ import mediaFolders from './routes/media-folders.js';
 import blocks from './routes/blocks.js';
 import menus from './routes/menus.js';
 import exportImport from './routes/export-import.js';
+// Phase 3: User management
+import users from './routes/users.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma } from './lib/db.js';
 
@@ -74,6 +76,8 @@ app.get('/health', async (c) => {
 
 // Routes
 app.route('/api/auth', auth);
+// Phase 3: User management (superadmin only)
+app.route('/api/admin/users', users);
 // Phase 2: Export/Import - MUST be before /api/admin/pages to avoid route conflict
 // (/pages/import and /pages/export-all would match /:id in pages.ts)
 app.route('/api/admin', exportImport);

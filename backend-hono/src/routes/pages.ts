@@ -24,6 +24,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
 import { siteMiddleware, requireSite } from '../middleware/site.js';
+import { requireSection } from '../middleware/permissions.js';
 
 const pages = new Hono();
 
@@ -32,6 +33,7 @@ pages.use('*', authMiddleware);
 pages.use('*', editorOrAdmin);
 pages.use('*', siteMiddleware);
 pages.use('*', requireSite);
+pages.use('*', requireSection('pages')); // Phase 3: section-based access
 
 // ===========================================
 // VALIDATION SCHEMAS

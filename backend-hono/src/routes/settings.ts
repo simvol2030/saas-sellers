@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
 import { siteMiddleware, requireSite } from '../middleware/site.js';
+import { requireSection } from '../middleware/permissions.js';
 
 const settings = new Hono();
 
@@ -18,6 +19,7 @@ settings.use('*', authMiddleware);
 settings.use('*', editorOrAdmin);
 settings.use('*', siteMiddleware);
 settings.use('*', requireSite);
+settings.use('*', requireSection('settings')); // Phase 3: section-based access
 
 // ==========================================
 // VALIDATION SCHEMAS

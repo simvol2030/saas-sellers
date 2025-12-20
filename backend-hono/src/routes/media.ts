@@ -23,6 +23,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
 import { siteMiddleware, requireSite, publicSiteMiddleware } from '../middleware/site.js';
+import { requireSection } from '../middleware/permissions.js';
 
 const media = new Hono();
 
@@ -123,6 +124,7 @@ media.get(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('media'), // Phase 3: section-based access
   zValidator('query', listQuerySchema),
   async (c) => {
     const siteId = c.get('siteId');
@@ -175,6 +177,7 @@ media.post(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('media'), // Phase 3: section-based access
   async (c) => {
     const siteId = c.get('siteId');
     const user = c.get('user');
@@ -275,6 +278,7 @@ media.get(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('media'), // Phase 3: section-based access
   async (c) => {
     const siteId = c.get('siteId');
     const id = parseInt(c.req.param('id'));
@@ -317,6 +321,7 @@ media.put(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('media'), // Phase 3: section-based access
   zValidator('json', updateMediaSchema),
   async (c) => {
     const siteId = c.get('siteId');
@@ -380,6 +385,7 @@ media.delete(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('media'), // Phase 3: section-based access
   async (c) => {
     const siteId = c.get('siteId');
     const id = parseInt(c.req.param('id'));

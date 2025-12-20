@@ -40,6 +40,7 @@ model Site {
   menus           Menu[]
   reusableBlocks  ReusableBlock[]
   tags            Tag[]
+  userSites       UserSite[]      // Phase 3: users with access
 
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -53,11 +54,13 @@ model Site {
 // ==========================================
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String   // bcrypt hash
-  name      String?
-  role      String   @default("editor") // admin, editor, viewer
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  password     String   // bcrypt hash
+  name         String?
+  role         String   @default("editor") // admin, editor, viewer
+  isSuperadmin Boolean  @default(false)    // Phase 3: superadmin flag
+  isActive     Boolean  @default(true)     // Phase 3: can disable users
 
   // Relations
   pages           Page[]
@@ -65,11 +68,32 @@ model User {
   sessions        Session[]
   ownedSites      Site[]          @relation("SiteOwner")
   reusableBlocks  ReusableBlock[]
+  userSites       UserSite[]      // Phase 3: site access permissions
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+// ==========================================
+// USER-SITE ACCESS (Phase 3)
+// ==========================================
+
+model UserSite {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  siteId      Int
+  permissions String   @default("{}") // JSON: {"pages": true, "blocks": true, ...}
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, siteId], name: "userId_siteId")
+  @@index([userId])
+  @@index([siteId])
+  @@map("user_sites")
 }
 
 model Session {

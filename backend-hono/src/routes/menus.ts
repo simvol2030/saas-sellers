@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
 import { siteMiddleware, requireSite, publicSiteMiddleware } from '../middleware/site.js';
+import { requireSection } from '../middleware/permissions.js';
 
 const menus = new Hono();
 
@@ -62,6 +63,7 @@ menus.get(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('menus'), // Phase 3: section-based access
   async (c) => {
     const siteId = c.get('siteId');
     const location = c.req.query('location');
@@ -100,6 +102,7 @@ menus.post(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('menus'), // Phase 3: section-based access
   zValidator('json', createMenuSchema),
   async (c) => {
     const siteId = c.get('siteId');
@@ -155,6 +158,7 @@ menus.get(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('menus'), // Phase 3: section-based access
   async (c) => {
     const siteId = c.get('siteId');
     const id = parseInt(c.req.param('id'));
@@ -198,6 +202,7 @@ menus.put(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('menus'), // Phase 3: section-based access
   zValidator('json', updateMenuSchema),
   async (c) => {
     const siteId = c.get('siteId');
@@ -266,6 +271,7 @@ menus.delete(
   editorOrAdmin,
   siteMiddleware,
   requireSite,
+  requireSection('menus'), // Phase 3: section-based access
   async (c) => {
     const siteId = c.get('siteId');
     const id = parseInt(c.req.param('id'));

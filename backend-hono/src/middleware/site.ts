@@ -17,6 +17,7 @@ export interface SiteContext {
   domain: string | null;
   subdomain: string | null;
   settings: Record<string, any>;
+  ownerId: number;  // Phase 3: for permission checks
 }
 
 // Extend Hono context
@@ -25,6 +26,16 @@ declare module 'hono' {
     site: SiteContext;
     siteId: number;
   }
+}
+
+/**
+ * Phase 3: Check if user has access to site via UserSite
+ */
+async function userHasSiteAccess(userId: number, siteId: number): Promise<boolean> {
+  const userSite = await prisma.userSite.findUnique({
+    where: { userId_siteId: { userId, siteId } },
+  });
+  return !!userSite;
 }
 
 /**
@@ -61,6 +72,7 @@ async function getOrCreateDefaultSite(ownerId: number): Promise<SiteContext> {
     domain: site.domain,
     subdomain: site.subdomain,
     settings: JSON.parse(site.settings),
+    ownerId: site.ownerId,
   };
 }
 
@@ -84,8 +96,15 @@ export const siteMiddleware = async (c: Context, next: Next) => {
         });
 
         if (foundSite) {
-          // Check user has access to this site
-          if (user?.role === 'admin' || foundSite.ownerId === user?.id) {
+          // Phase 3: Check user has access to this site
+          // Superadmin has access to all sites
+          // Site owner has access to their site
+          // UserSite grants access via permissions
+          const hasAccess = user?.isSuperadmin ||
+            foundSite.ownerId === user?.id ||
+            (user?.id && await userHasSiteAccess(user.id, foundSite.id));
+
+          if (hasAccess) {
             site = {
               id: foundSite.id,
               slug: foundSite.slug,
@@ -93,6 +112,7 @@ export const siteMiddleware = async (c: Context, next: Next) => {
               domain: foundSite.domain,
               subdomain: foundSite.subdomain,
               settings: JSON.parse(foundSite.settings),
+              ownerId: foundSite.ownerId,
             };
           }
         }
@@ -101,24 +121,27 @@ export const siteMiddleware = async (c: Context, next: Next) => {
 
     // If no site from header, get user's first site or default
     if (!site && user) {
-      const userSite = await prisma.site.findFirst({
+      // Phase 3: Include sites accessible via UserSite
+      const accessibleSite = await prisma.site.findFirst({
         where: {
           OR: [
             { ownerId: user.id },
-            ...(user.role === 'admin' ? [{ isActive: true }] : []),
+            { userSites: { some: { userId: user.id } } },  // Phase 3: UserSite access
+            ...(user.isSuperadmin ? [{ isActive: true }] : []),  // Superadmin sees all
           ],
         },
         orderBy: { createdAt: 'asc' },
       });
 
-      if (userSite) {
+      if (accessibleSite) {
         site = {
-          id: userSite.id,
-          slug: userSite.slug,
-          name: userSite.name,
-          domain: userSite.domain,
-          subdomain: userSite.subdomain,
-          settings: JSON.parse(userSite.settings),
+          id: accessibleSite.id,
+          slug: accessibleSite.slug,
+          name: accessibleSite.name,
+          domain: accessibleSite.domain,
+          subdomain: accessibleSite.subdomain,
+          settings: JSON.parse(accessibleSite.settings),
+          ownerId: accessibleSite.ownerId,
         };
       } else {
         // Create default site for this user
@@ -140,6 +163,7 @@ export const siteMiddleware = async (c: Context, next: Next) => {
           domain: defaultSite.domain,
           subdomain: defaultSite.subdomain,
           settings: JSON.parse(defaultSite.settings),
+          ownerId: defaultSite.ownerId,
         };
       }
     }
@@ -184,6 +208,7 @@ export const publicSiteMiddleware = async (c: Context, next: Next) => {
         domain: foundByDomain.domain,
         subdomain: foundByDomain.subdomain,
         settings: JSON.parse(foundByDomain.settings),
+        ownerId: foundByDomain.ownerId,
       };
     }
 
@@ -207,6 +232,7 @@ export const publicSiteMiddleware = async (c: Context, next: Next) => {
             domain: foundBySubdomain.domain,
             subdomain: foundBySubdomain.subdomain,
             settings: JSON.parse(foundBySubdomain.settings),
+            ownerId: foundBySubdomain.ownerId,
           };
         }
       }
@@ -226,6 +252,7 @@ export const publicSiteMiddleware = async (c: Context, next: Next) => {
           domain: defaultSite.domain,
           subdomain: defaultSite.subdomain,
           settings: JSON.parse(defaultSite.settings),
+          ownerId: defaultSite.ownerId,
         };
       }
     }

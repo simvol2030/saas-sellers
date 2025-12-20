@@ -47,14 +47,68 @@ const updateSiteSchema = z.object({
 // ==========================================
 
 /**
+ * GET /api/admin/sites/accessible - List sites user has access to
+ * Phase 3: Returns sites based on ownership, UserSite, or superadmin status
+ */
+sites.get('/accessible', async (c) => {
+  const user = c.get('user');
+
+  try {
+    let accessibleSites;
+
+    if (user.isSuperadmin) {
+      // Superadmin sees all active sites
+      accessibleSites = await prisma.site.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          domain: true,
+          subdomain: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+    } else {
+      // Regular users: owned sites + sites via UserSite
+      accessibleSites = await prisma.site.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { ownerId: user.id },
+            { userSites: { some: { userId: user.id } } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          domain: true,
+          subdomain: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    return c.json({
+      sites: accessibleSites,
+      total: accessibleSites.length,
+    });
+  } catch (error) {
+    console.error('Error listing accessible sites:', error);
+    return c.json({ error: 'Failed to list accessible sites' }, 500);
+  }
+});
+
+/**
  * GET /api/admin/sites - List user's sites
  */
 sites.get('/', async (c) => {
   const user = c.get('user');
 
   try {
-    // Admins can see all sites, others only their owned sites
-    const whereClause = user.role === 'admin' ? {} : { ownerId: user.id };
+    // Superadmins can see all sites, others only their owned sites
+    const whereClause = user.isSuperadmin ? {} : { ownerId: user.id };
 
     const allSites = await prisma.site.findMany({
       where: whereClause,
@@ -210,8 +264,14 @@ sites.get('/:id', async (c) => {
       return c.json({ error: 'Site not found' }, 404);
     }
 
-    // Check access (admin or owner)
-    if (user.role !== 'admin' && site.ownerId !== user.id) {
+    // Check access (superadmin, owner, or via UserSite)
+    const hasAccess = user.isSuperadmin ||
+      site.ownerId === user.id ||
+      await prisma.userSite.findUnique({
+        where: { userId_siteId: { userId: user.id, siteId: id } },
+      });
+
+    if (!hasAccess) {
       return c.json({ error: 'Access denied' }, 403);
     }
 
@@ -248,8 +308,8 @@ sites.put('/:id', zValidator('json', updateSiteSchema), async (c) => {
       return c.json({ error: 'Site not found' }, 404);
     }
 
-    // Check access (admin or owner)
-    if (user.role !== 'admin' && existingSite.ownerId !== user.id) {
+    // Check access (superadmin or owner only - UserSite users cannot update site)
+    if (!user.isSuperadmin && existingSite.ownerId !== user.id) {
       return c.json({ error: 'Access denied' }, 403);
     }
 
@@ -332,8 +392,8 @@ sites.delete('/:id', async (c) => {
       return c.json({ error: 'Site not found' }, 404);
     }
 
-    // Only admin or owner can delete
-    if (user.role !== 'admin' && site.ownerId !== user.id) {
+    // Only superadmin or owner can delete
+    if (!user.isSuperadmin && site.ownerId !== user.id) {
       return c.json({ error: 'Access denied' }, 403);
     }
 
@@ -384,8 +444,14 @@ sites.post('/:id/switch', async (c) => {
       return c.json({ error: 'Site not found' }, 404);
     }
 
-    // Check access
-    if (user.role !== 'admin' && site.ownerId !== user.id) {
+    // Check access (superadmin, owner, or via UserSite)
+    const hasAccess = user.isSuperadmin ||
+      site.ownerId === user.id ||
+      await prisma.userSite.findUnique({
+        where: { userId_siteId: { userId: user.id, siteId: id } },
+      });
+
+    if (!hasAccess) {
       return c.json({ error: 'Access denied' }, 403);
     }
 
