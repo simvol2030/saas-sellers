@@ -341,13 +341,13 @@ users.delete('/:id', superadminOnly, async (c) => {
     return c.json({ error: 'User not found' }, 404);
   }
 
-  // Protection: Cannot delete the last superadmin
+  // Protection: Cannot delete the last active superadmin
   if (target.isSuperadmin) {
-    const count = await prisma.user.count({
-      where: { isSuperadmin: true },
+    const activeCount = await prisma.user.count({
+      where: { isSuperadmin: true, isActive: true },
     });
-    if (count <= 1) {
-      return c.json({ error: 'Cannot delete the last superadmin' }, 400);
+    if (activeCount <= 1) {
+      return c.json({ error: 'Cannot delete the last active superadmin' }, 400);
     }
   }
 
@@ -372,6 +372,22 @@ users.post('/:id/sites', superadminOnly, zValidator('json', assignSitesSchema), 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     return c.json({ error: 'User not found' }, 404);
+  }
+
+  // Verify all sites exist
+  if (siteIds.length > 0) {
+    const existingSites = await prisma.site.findMany({
+      where: { id: { in: siteIds } },
+      select: { id: true },
+    });
+    const existingIds = new Set(existingSites.map((s: { id: number }) => s.id));
+    const missingIds = siteIds.filter((id) => !existingIds.has(id));
+    if (missingIds.length > 0) {
+      return c.json({
+        error: 'Sites not found',
+        missingIds,
+      }, 400);
+    }
   }
 
   const permissionsJson = JSON.stringify(permissions || DEFAULT_PERMISSIONS);

@@ -10,7 +10,7 @@
 
 import { Context, Next } from 'hono';
 import { prisma } from '../lib/db.js';
-import type { AdminSection } from '../lib/permissions.js';
+import { hasPermission, type AdminSection } from '../lib/permissions.js';
 
 /**
  * Require access to a specific admin section
@@ -62,15 +62,8 @@ export const requireSection = (section: AdminSection) => {
       }, 403);
     }
 
-    // Parse permissions and check section access
-    let permissions: Record<string, boolean> = {};
-    try {
-      permissions = JSON.parse(userSite.permissions || '{}');
-    } catch {
-      permissions = {};
-    }
-
-    if (!permissions[section]) {
+    // Check section access using helper
+    if (!hasPermission(userSite.permissions, section)) {
       return c.json({
         error: 'Section access denied',
         code: 'SECTION_DENIED',

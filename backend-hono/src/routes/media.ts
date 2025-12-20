@@ -22,7 +22,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
-import { siteMiddleware, requireSite, publicSiteMiddleware } from '../middleware/site.js';
+import { siteMiddleware, requireSite } from '../middleware/site.js';
 import { requireSection } from '../middleware/permissions.js';
 
 const media = new Hono();
