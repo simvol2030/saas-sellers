@@ -14,6 +14,9 @@
 import '../styles/theme.css';
 import '../styles/global.css';
 
+// Import SiteSelector (Phase 3)
+import SiteSelector from '../components/admin/SiteSelector.svelte';
+
 // Force SSR for admin pages
 export const prerender = false;
 
@@ -89,6 +92,21 @@ const currentPath = Astro.url.pathname;
             <span class="nav-label">{item.label}</span>
           </a>
         ))}
+
+        <!-- Superadmin-only navigation (Phase 3) -->
+        <div id="superadmin-nav" style="display: none;">
+          <div class="nav-separator"></div>
+          <a
+            href="/admin/users"
+            class:list={[
+              'nav-item',
+              { active: currentPath === '/admin/users' || currentPath.startsWith('/admin/users/') }
+            ]}
+          >
+            <span class="nav-icon" data-icon="users"></span>
+            <span class="nav-label">Пользователи</span>
+          </a>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -112,6 +130,9 @@ const currentPath = Astro.url.pathname;
         <h1 class="header-title">{title}</h1>
 
         <div class="header-actions">
+          <!-- Site selector (Phase 3) -->
+          <SiteSelector client:load />
+
           <!-- Theme toggle -->
           <button class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">
             <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -286,7 +307,14 @@ const currentPath = Astro.url.pathname;
     .nav-icon[data-icon="media"]::before { content: '🖼️'; }
     .nav-icon[data-icon="theme"]::before { content: '🎨'; }
     .nav-icon[data-icon="settings"]::before { content: '⚙️'; }
+    .nav-icon[data-icon="users"]::before { content: '👥'; }
     .nav-icon[data-icon="external"]::before { content: '🔗'; }
+
+    .nav-separator {
+      height: 1px;
+      background: var(--color-border);
+      margin: var(--spacing-3) var(--spacing-4);
+    }
 
     .sidebar-footer {
       padding: var(--spacing-4) var(--spacing-3);
@@ -571,6 +599,14 @@ const currentPath = Astro.url.pathname;
           const userName = document.getElementById('user-name');
           if (userName && data.user) {
             userName.textContent = data.user.name || data.user.email;
+          }
+
+          // Phase 3: Show superadmin navigation
+          if (data.user?.isSuperadmin) {
+            const superadminNav = document.getElementById('superadmin-nav');
+            if (superadminNav) {
+              superadminNav.style.display = 'block';
+            }
           }
         }
       } catch (e) {
