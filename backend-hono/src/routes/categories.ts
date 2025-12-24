@@ -120,7 +120,22 @@ categories.get('/public', publicSiteMiddleware, async (c) => {
     }
   });
 
-  return c.json(roots);
+  // Return both flat list and tree structure
+  const flatCategories = allCategories.map((cat: CategoryWithCount) => ({
+    id: cat.id,
+    name: cat.name,
+    slug: cat.slug,
+    description: cat.description,
+    image: cat.image,
+    productsCount: cat._count.products,
+    parentId: cat.parentId,
+    level: cat.level,
+  }));
+
+  return c.json({
+    categories: flatCategories,
+    tree: roots,
+  });
 });
 
 // ============================================
