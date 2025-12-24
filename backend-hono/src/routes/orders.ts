@@ -144,8 +144,8 @@ orders.post('/checkout', publicSiteMiddleware, zValidator('json', checkoutSchema
   }> = [];
 
   for (const item of cart.items) {
-    const prices = JSON.parse(item.priceSnapshot || item.variant?.prices || item.product.prices);
-    const price = prices[cart.currencyCode] || Object.values(prices)[0] || 0;
+    // Use stored price from CartItem
+    const price = Number(item.price);
     const itemTotal = price * item.quantity;
     subtotal += itemTotal;
 
@@ -194,14 +194,12 @@ orders.post('/checkout', publicSiteMiddleware, zValidator('json', checkoutSchema
         return c.json({ error: 'Promo code usage limit exceeded' }, 400);
       }
 
-      // Calculate discount
-      if (promo.discountType === 'percentage') {
-        promoDiscount = subtotal * Number(promo.discountValue) / 100;
-        if (promo.maxDiscount && promoDiscount > Number(promo.maxDiscount)) {
-          promoDiscount = Number(promo.maxDiscount);
-        }
+      // Calculate discount (type: 'fixed' or 'percent', value: discount amount)
+      if (promo.type === 'percent') {
+        promoDiscount = subtotal * Number(promo.value) / 100;
       } else {
-        promoDiscount = Number(promo.discountValue);
+        // fixed discount
+        promoDiscount = Number(promo.value);
       }
 
       discount += promoDiscount;
@@ -236,7 +234,6 @@ orders.post('/checkout', publicSiteMiddleware, zValidator('json', checkoutSchema
         shippingCost,
         subtotal,
         discount,
-        tax: 0,
         total,
         status: 'pending',
         paymentMethod: data.paymentMethod,
@@ -474,7 +471,6 @@ adminRoutes.get('/:id', async (c) => {
       currencyRate: Number(order.currencyRate),
       subtotal: Number(order.subtotal),
       discount: Number(order.discount),
-      tax: Number(order.tax),
       shippingCost: Number(order.shippingCost),
       total: Number(order.total),
       shippingMethod: order.shippingMethod,

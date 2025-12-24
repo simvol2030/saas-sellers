@@ -64,11 +64,16 @@ async function getOrCreateCart(sessionId: string, siteId: number, currencyCode?:
   });
 
   if (!cartRecord) {
+    // Cart expires in 30 days
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
     cartRecord = await prisma.cart.create({
       data: {
         sessionId,
         siteId,
         currencyCode: currencyCode || 'RUB',
+        expiresAt,
       },
       include: {
         items: {
@@ -95,8 +100,8 @@ async function getOrCreateCart(sessionId: string, siteId: number, currencyCode?:
 function calculateTotals(
   items: Array<{
     quantity: number;
-    priceSnapshot: string;
-    product: { prices: string; comparePrice: number | null };
+    price: any; // Prisma Decimal
+    product: { prices: string; comparePrice: any | null };
     variant: { prices: string } | null;
   }>,
   currencyCode: string
@@ -106,9 +111,9 @@ function calculateTotals(
   let itemCount = 0;
 
   for (const item of items) {
-    const prices = JSON.parse(item.priceSnapshot || item.variant?.prices || item.product.prices);
-    const price = prices[currencyCode] || Object.values(prices)[0] || 0;
-    const comparePrice = item.product.comparePrice;
+    // Use the stored price from CartItem
+    const price = Number(item.price);
+    const comparePrice = item.product.comparePrice ? Number(item.product.comparePrice) : null;
 
     subtotal += price * item.quantity;
     itemCount += item.quantity;
@@ -127,8 +132,8 @@ function formatCartResponse(
   currencyCode: string
 ) {
   const items = cartRecord.items.map((item: any) => {
-    const prices = JSON.parse(item.priceSnapshot || item.variant?.prices || item.product.prices);
-    const price = prices[currencyCode] || Object.values(prices)[0] || 0;
+    // Use the stored price from CartItem
+    const price = Number(item.price);
     const productPrices = JSON.parse(item.product.prices);
 
     return {
@@ -144,10 +149,10 @@ function formatCartResponse(
         slug: item.product.slug,
         sku: item.product.sku,
         prices: productPrices,
-        comparePrice: item.product.comparePrice,
+        comparePrice: item.product.comparePrice ? Number(item.product.comparePrice) : null,
         image: item.product.images[0]?.url || null,
         stock: item.product.stock,
-        stockStatus: item.product.stockStatus,
+        trackStock: item.product.trackStock,
       },
       variant: item.variant
         ? {
@@ -206,7 +211,7 @@ cart.post('/items', publicSiteMiddleware, zValidator('json', addItemSchema), asy
     where: {
       id: productId,
       siteId,
-      status: 'active',
+      status: 'published',
     },
   });
 
@@ -230,9 +235,9 @@ cart.post('/items', publicSiteMiddleware, zValidator('json', addItemSchema), asy
     }
   }
 
-  // Check stock
+  // Check stock (only if tracking is enabled)
   const availableStock = variant?.stock ?? product.stock;
-  if (availableStock <= 0 && product.stockStatus !== 'in_stock') {
+  if (product.trackStock && availableStock <= 0) {
     return c.json({ error: 'Product out of stock' }, 400);
   }
 
@@ -245,15 +250,19 @@ cart.post('/items', publicSiteMiddleware, zValidator('json', addItemSchema), asy
     },
   });
 
-  // Calculate price snapshot
-  const priceSnapshot = variant?.prices || product.prices;
+  // Calculate price from variant or product
+  const variantPrices = variant ? JSON.parse(variant.prices) : null;
+  const productPrices = JSON.parse(product.prices);
+  const price = variantPrices?.[cartRecord.currencyCode] ||
+                productPrices[cartRecord.currencyCode] ||
+                Number(variant?.price ?? product.price);
 
   if (existingItem) {
     // Update quantity
     const newQuantity = existingItem.quantity + quantity;
 
-    // Check stock limit
-    if (newQuantity > availableStock && product.stockStatus !== 'in_stock') {
+    // Check stock limit (only if tracking is enabled)
+    if (product.trackStock && newQuantity > availableStock) {
       return c.json({ error: 'Not enough stock', available: availableStock }, 400);
     }
 
@@ -262,8 +271,8 @@ cart.post('/items', publicSiteMiddleware, zValidator('json', addItemSchema), asy
       data: { quantity: newQuantity },
     });
   } else {
-    // Add new item
-    if (quantity > availableStock && product.stockStatus !== 'in_stock') {
+    // Add new item - check stock limit (only if tracking is enabled)
+    if (product.trackStock && quantity > availableStock) {
       return c.json({ error: 'Not enough stock', available: availableStock }, 400);
     }
 
@@ -273,7 +282,7 @@ cart.post('/items', publicSiteMiddleware, zValidator('json', addItemSchema), asy
         productId,
         variantId: variantId || null,
         quantity,
-        priceSnapshot,
+        price, // Store the current price
       },
     });
   }
@@ -341,9 +350,9 @@ cart.put('/items/:id', publicSiteMiddleware, zValidator('json', updateItemSchema
     return c.json({ error: 'Cart item not found' }, 404);
   }
 
-  // Check stock
+  // Check stock (only if tracking is enabled)
   const availableStock = item.variant?.stock ?? item.product.stock;
-  if (quantity > availableStock && item.product.stockStatus !== 'in_stock') {
+  if (item.product.trackStock && quantity > availableStock) {
     return c.json({ error: 'Not enough stock', available: availableStock }, 400);
   }
 
@@ -492,11 +501,10 @@ cart.put('/currency', publicSiteMiddleware, zValidator('json', currencySchema), 
   const sessionId = await getOrCreateSession(c);
   const { currencyCode } = c.req.valid('json');
 
-  // Validate currency exists
+  // Validate currency exists (Currency is a global table, no siteId)
   const currency = await prisma.currency.findFirst({
     where: {
       code: currencyCode,
-      siteId,
       isActive: true,
     },
   });
@@ -570,15 +578,15 @@ cart.post('/validate', publicSiteMiddleware, async (c) => {
 
   // Validate each item
   for (const item of cartRecord.items) {
-    // Check product is active
-    if (item.product.status !== 'active') {
+    // Check product is published
+    if (item.product.status !== 'published') {
       errors.push(`Product "${item.product.name}" is no longer available`);
       continue;
     }
 
-    // Check stock
+    // Check stock (only if tracking is enabled)
     const availableStock = item.variant?.stock ?? item.product.stock;
-    if (item.quantity > availableStock && item.product.stockStatus !== 'in_stock') {
+    if (item.product.trackStock && item.quantity > availableStock) {
       if (availableStock === 0) {
         errors.push(`Product "${item.product.name}" is out of stock`);
       } else {
@@ -588,10 +596,11 @@ cart.post('/validate', publicSiteMiddleware, async (c) => {
 
     // Check price changes
     const currentPrices = JSON.parse(item.variant?.prices || item.product.prices);
-    const snapshotPrices = JSON.parse(item.priceSnapshot);
     const currencyCode = cartRecord.currencyCode;
+    const currentPrice = currentPrices[currencyCode] || Number(item.variant?.price ?? item.product.price);
+    const savedPrice = Number(item.price);
 
-    if (currentPrices[currencyCode] !== snapshotPrices[currencyCode]) {
+    if (currentPrice !== savedPrice) {
       warnings.push(`Price of "${item.product.name}" has changed`);
     }
   }

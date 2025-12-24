@@ -72,9 +72,9 @@ productImportExport.get('/export', async (c) => {
       p.slug,
       `"${(p.description || '').replace(/"/g, '""')}"`,
       `"${(p.shortDesc || '').replace(/"/g, '""')}"`,
-      p.price,
-      p.comparePrice || '',
-      p.costPrice || '',
+      Number(p.price),
+      p.comparePrice ? Number(p.comparePrice) : '',
+      p.costPrice ? Number(p.costPrice) : '',
       `"${p.prices}"`,
       p.sku || '',
       p.barcode || '',
@@ -84,7 +84,7 @@ productImportExport.get('/export', async (c) => {
       p.status,
       p.featured,
       p.productType,
-      p.weight || '',
+      p.weight ? Number(p.weight) : '',
       `"${p.dimensions || ''}"`,
       p.categoryId || '',
       p.category?.name || '',
@@ -93,7 +93,7 @@ productImportExport.get('/export', async (c) => {
       `"${(p.metaDescription || '').replace(/"/g, '""')}"`,
     ]);
 
-    const csv = [headers.join(','), ...rows.map((r: (string | number | boolean | null | undefined)[]) => r.join(','))].join('\n');
+    const csv = [headers.join(','), ...rows.map((r: (string | number | boolean)[]) => r.join(','))].join('\n');
 
     return new Response(csv, {
       headers: {
