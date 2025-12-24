@@ -66,53 +66,9 @@ async function calculateLevel(parentId: number | null | undefined, siteId: numbe
   return parent.level + 1;
 }
 
-// Apply common middlewares for admin routes
-categories.use('*', authMiddleware);
-categories.use('*', editorOrAdmin);
-categories.use('*', siteMiddleware);
-
-// GET /api/admin/categories - List all categories for site
-categories.get('/', requireSite, async (c) => {
-  const siteId = c.get('siteId');
-  const { flat } = c.req.query();
-
-  const allCategories = await prisma.productCategory.findMany({
-    where: { siteId },
-    include: {
-      _count: { select: { products: true } },
-    },
-    orderBy: [
-      { level: 'asc' },
-      { position: 'asc' },
-      { name: 'asc' },
-    ],
-  });
-
-  // Return flat list
-  if (flat === 'true') {
-    return c.json(allCategories);
-  }
-
-  // Build tree structure
-  type CatWithChildren = CategoryWithCount & { children: CatWithChildren[] };
-  const categoryMap = new Map<number, CatWithChildren>();
-  const roots: CatWithChildren[] = [];
-
-  allCategories.forEach((cat: CategoryWithCount) => {
-    categoryMap.set(cat.id, { ...cat, children: [] });
-  });
-
-  allCategories.forEach((cat: CategoryWithCount) => {
-    const catWithChildren = categoryMap.get(cat.id)!;
-    if (cat.parentId && categoryMap.has(cat.parentId)) {
-      categoryMap.get(cat.parentId)!.children.push(catWithChildren);
-    } else {
-      roots.push(catWithChildren);
-    }
-  });
-
-  return c.json(roots);
-});
+// ============================================
+// PUBLIC ENDPOINTS (no auth required)
+// ============================================
 
 // GET /api/categories/public - Public list (for catalog)
 categories.get('/public', publicSiteMiddleware, async (c) => {
@@ -167,8 +123,55 @@ categories.get('/public', publicSiteMiddleware, async (c) => {
   return c.json(roots);
 });
 
+// ============================================
+// ADMIN ENDPOINTS (auth required)
+// ============================================
+
+// GET /api/admin/categories - List all categories for site
+categories.get('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, async (c) => {
+  const siteId = c.get('siteId');
+  const { flat } = c.req.query();
+
+  const allCategories = await prisma.productCategory.findMany({
+    where: { siteId },
+    include: {
+      _count: { select: { products: true } },
+    },
+    orderBy: [
+      { level: 'asc' },
+      { position: 'asc' },
+      { name: 'asc' },
+    ],
+  });
+
+  // Return flat list
+  if (flat === 'true') {
+    return c.json(allCategories);
+  }
+
+  // Build tree structure
+  type CatWithChildren = CategoryWithCount & { children: CatWithChildren[] };
+  const categoryMap = new Map<number, CatWithChildren>();
+  const roots: CatWithChildren[] = [];
+
+  allCategories.forEach((cat: CategoryWithCount) => {
+    categoryMap.set(cat.id, { ...cat, children: [] });
+  });
+
+  allCategories.forEach((cat: CategoryWithCount) => {
+    const catWithChildren = categoryMap.get(cat.id)!;
+    if (cat.parentId && categoryMap.has(cat.parentId)) {
+      categoryMap.get(cat.parentId)!.children.push(catWithChildren);
+    } else {
+      roots.push(catWithChildren);
+    }
+  });
+
+  return c.json(roots);
+});
+
 // GET /api/admin/categories/:id - Get single category
-categories.get('/:id', requireSite, async (c) => {
+categories.get('/:id', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, async (c) => {
   const id = parseInt(c.req.param('id'));
   const siteId = c.get('siteId');
 
@@ -189,7 +192,7 @@ categories.get('/:id', requireSite, async (c) => {
 });
 
 // POST /api/admin/categories - Create category
-categories.post('/', requireSite, requireSection('products'), zValidator('json', categorySchema), async (c) => {
+categories.post('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), zValidator('json', categorySchema), async (c) => {
   const siteId = c.get('siteId');
   const data = c.req.valid('json');
 
@@ -236,7 +239,7 @@ categories.post('/', requireSite, requireSection('products'), zValidator('json',
 });
 
 // PUT /api/admin/categories/:id - Update category
-categories.put('/:id', requireSite, requireSection('products'), zValidator('json', updateCategorySchema), async (c) => {
+categories.put('/:id', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), zValidator('json', updateCategorySchema), async (c) => {
   const id = parseInt(c.req.param('id'));
   const siteId = c.get('siteId');
   const data = c.req.valid('json');
@@ -290,7 +293,7 @@ categories.put('/:id', requireSite, requireSection('products'), zValidator('json
 });
 
 // DELETE /api/admin/categories/:id - Delete category
-categories.delete('/:id', requireSite, requireSection('products'), async (c) => {
+categories.delete('/:id', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), async (c) => {
   const id = parseInt(c.req.param('id'));
   const siteId = c.get('siteId');
 
@@ -321,7 +324,7 @@ categories.delete('/:id', requireSite, requireSection('products'), async (c) => 
 });
 
 // POST /api/admin/categories/reorder - Reorder categories
-categories.post('/reorder', requireSite, requireSection('products'), zValidator('json', z.object({
+categories.post('/reorder', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), zValidator('json', z.object({
   items: z.array(z.object({
     id: z.number().int(),
     position: z.number().int(),

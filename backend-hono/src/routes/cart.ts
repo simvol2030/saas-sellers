@@ -180,6 +180,11 @@ function formatCartResponse(
 // GET /api/cart - Get current cart
 cart.get('/', publicSiteMiddleware, async (c) => {
   const siteId = c.get('siteId');
+
+  if (!siteId) {
+    return c.json({ error: 'Site not configured. Please contact administrator.' }, 500);
+  }
+
   const sessionId = await getOrCreateSession(c);
   const currencyCode = c.req.query('currency') || 'RUB';
 
@@ -200,6 +205,11 @@ const addItemSchema = z.object({
 // POST /api/cart/items - Add item to cart
 cart.post('/items', publicSiteMiddleware, zValidator('json', addItemSchema), async (c) => {
   const siteId = c.get('siteId');
+
+  if (!siteId) {
+    return c.json({ error: 'Site not configured. Please contact administrator.' }, 500);
+  }
+
   const sessionId = await getOrCreateSession(c);
   const { productId, variantId, quantity } = c.req.valid('json');
 
@@ -321,6 +331,11 @@ const updateItemSchema = z.object({
 // PUT /api/cart/items/:id - Update cart item quantity
 cart.put('/items/:id', publicSiteMiddleware, zValidator('json', updateItemSchema), async (c) => {
   const siteId = c.get('siteId');
+
+  if (!siteId) {
+    return c.json({ error: 'Site not configured. Please contact administrator.' }, 500);
+  }
+
   const sessionId = await getOrCreateSession(c);
   const itemId = parseInt(c.req.param('id'));
   const { quantity } = c.req.valid('json');
@@ -391,6 +406,11 @@ cart.put('/items/:id', publicSiteMiddleware, zValidator('json', updateItemSchema
 // DELETE /api/cart/items/:id - Remove item from cart
 cart.delete('/items/:id', publicSiteMiddleware, async (c) => {
   const siteId = c.get('siteId');
+
+  if (!siteId) {
+    return c.json({ error: 'Site not configured. Please contact administrator.' }, 500);
+  }
+
   const sessionId = await getOrCreateSession(c);
   const itemId = parseInt(c.req.param('id'));
 
@@ -448,6 +468,11 @@ cart.delete('/items/:id', publicSiteMiddleware, async (c) => {
 // DELETE /api/cart - Clear cart
 cart.delete('/', publicSiteMiddleware, async (c) => {
   const siteId = c.get('siteId');
+
+  if (!siteId) {
+    return c.json({ error: 'Site not configured. Please contact administrator.' }, 500);
+  }
+
   const sessionId = await getOrCreateSession(c);
 
   // Find cart
@@ -498,6 +523,11 @@ const currencySchema = z.object({
 // PUT /api/cart/currency - Change cart currency
 cart.put('/currency', publicSiteMiddleware, zValidator('json', currencySchema), async (c) => {
   const siteId = c.get('siteId');
+
+  if (!siteId) {
+    return c.json({ error: 'Site not configured. Please contact administrator.' }, 500);
+  }
+
   const sessionId = await getOrCreateSession(c);
   const { currencyCode } = c.req.valid('json');
 
@@ -551,6 +581,11 @@ cart.put('/currency', publicSiteMiddleware, zValidator('json', currencySchema), 
 // POST /api/cart/validate - Validate cart before checkout
 cart.post('/validate', publicSiteMiddleware, async (c) => {
   const siteId = c.get('siteId');
+
+  if (!siteId) {
+    return c.json({ error: 'Site not configured. Please contact administrator.' }, 500);
+  }
+
   const sessionId = await getOrCreateSession(c);
 
   // Find cart
