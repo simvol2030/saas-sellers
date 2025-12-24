@@ -75,3 +75,40 @@ bun.lockb
 # MCP settings with secrets
 .mcp.json
 .claude/settings.local.json
+
+# ===========================================
+# Workflow v4.2 - Media & Uploads Protection
+# ===========================================
+
+# Playwright screenshots (not needed in repo)
+.playwright-mcp/*.png
+.playwright-mcp/*.jpg
+.playwright-mcp/*.jpeg
+
+# Media files (safety net)
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.gif
+*.mp4
+*.webm
+*.mov
+*.avi
+*.mp3
+*.wav
+*.ogg
+
+# Exception: favicon.svg is allowed
+!**/favicon.svg
+
+# Uploads (user-generated content)
+backend-hono/uploads/
+!backend-hono/uploads/.gitkeep
+
+# Backups
+*.tar.gz
+uploads-backup-*.tar.gz
+
+# Build artifacts (additional)
+.svelte-kit/
