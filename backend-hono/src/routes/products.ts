@@ -239,85 +239,14 @@ products.get('/public', publicSiteMiddleware, async (c) => {
   }));
 
   return c.json({
-    items: formattedItems,
-    total,
-    page: parseInt(page),
-    limit: parseInt(limit),
-    pages: Math.ceil(total / take),
-  });
-});
-
-// GET /api/products/public/:slug - Public product by slug
-products.get('/public/:slug', publicSiteMiddleware, async (c) => {
-  const siteId = c.get('siteId');
-  const slug = c.req.param('slug');
-
-  if (!siteId) {
-    return c.json({ error: 'Site ID required' }, 400);
-  }
-
-  const product = await prisma.product.findFirst({
-    where: {
-      siteId,
-      slug,
-      status: 'published',
-    },
-    include: {
-      category: { select: { id: true, name: true, slug: true } },
-      images: { orderBy: { position: 'asc' } },
-      variants: { where: { isActive: true }, orderBy: { position: 'asc' } },
-      attributes: { orderBy: { name: 'asc' } },
-      modifiers: { orderBy: { position: 'asc' } },
+    products: formattedItems,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / take),
     },
   });
-
-  if (!product) {
-    return c.json({ error: 'Product not found' }, 404);
-  }
-
-  // Format response for public consumption
-  const response = {
-    id: product.id,
-    name: product.name,
-    slug: product.slug,
-    description: product.description,
-    shortDesc: product.shortDesc,
-    price: Number(product.price),
-    comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
-    prices: JSON.parse(product.prices),
-    inStock: !product.trackStock || product.stock > 0,
-    stock: product.trackStock ? product.stock : null,
-    featured: product.featured,
-    productType: product.productType,
-    category: product.category,
-    images: product.images.map((img: typeof product.images[number]) => ({
-      url: img.url,
-      alt: img.alt,
-      isMain: img.isMain,
-    })),
-    variants: product.variants.map((v: typeof product.variants[number]) => ({
-      id: v.id,
-      name: v.name,
-      price: v.price ? Number(v.price) : null,
-      prices: JSON.parse(v.prices),
-      inStock: v.stock > 0,
-      imageUrl: v.imageUrl,
-    })),
-    attributes: product.attributes.map((a: typeof product.attributes[number]) => ({
-      name: a.name,
-      value: a.value,
-      group: a.group,
-    })),
-    modifiers: product.modifiers.map((m: typeof product.modifiers[number]) => ({
-      id: m.id,
-      name: m.name,
-      type: m.type,
-      required: m.required,
-      options: JSON.parse(m.options),
-    })),
-  };
-
-  return c.json(response);
 });
 
 // GET /api/products/public/featured - Featured products
@@ -368,7 +297,7 @@ products.get('/public/featured', publicSiteMiddleware, async (c) => {
     image: p.images[0]?.url || null,
   }));
 
-  return c.json({ items: formattedItems });
+  return c.json({ products: formattedItems });
 });
 
 // GET /api/products/public/search - Search products
@@ -420,7 +349,7 @@ products.get('/public/search', publicSiteMiddleware, async (c) => {
     image: p.images[0]?.url || null,
   }));
 
-  return c.json({ items: formattedItems });
+  return c.json({ products: formattedItems });
 });
 
 // GET /api/products/public/category/:slug - Products by category
@@ -521,12 +450,88 @@ products.get('/public/category/:slug', publicSiteMiddleware, async (c) => {
       parent: category.parent,
       children: category.children,
     },
-    items: formattedItems,
-    total,
-    page,
-    limit,
-    pages: Math.ceil(total / limit),
+    products: formattedItems,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
   });
+});
+
+// GET /api/products/public/:slug - Public product by slug
+// NOTE: This route MUST come after more specific routes like /public/featured, /public/search
+products.get('/public/:slug', publicSiteMiddleware, async (c) => {
+  const siteId = c.get('siteId');
+  const slug = c.req.param('slug');
+
+  if (!siteId) {
+    return c.json({ error: 'Site ID required' }, 400);
+  }
+
+  const product = await prisma.product.findFirst({
+    where: {
+      siteId,
+      slug,
+      status: 'published',
+    },
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+      images: { orderBy: { position: 'asc' } },
+      variants: { where: { isActive: true }, orderBy: { position: 'asc' } },
+      attributes: { orderBy: { name: 'asc' } },
+      modifiers: { orderBy: { position: 'asc' } },
+    },
+  });
+
+  if (!product) {
+    return c.json({ error: 'Product not found' }, 404);
+  }
+
+  // Format response for public consumption
+  const response = {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    description: product.description,
+    shortDesc: product.shortDesc,
+    price: Number(product.price),
+    comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+    prices: JSON.parse(product.prices),
+    inStock: !product.trackStock || product.stock > 0,
+    stock: product.trackStock ? product.stock : null,
+    featured: product.featured,
+    productType: product.productType,
+    category: product.category,
+    images: product.images.map((img: typeof product.images[number]) => ({
+      url: img.url,
+      alt: img.alt,
+      isMain: img.isMain,
+    })),
+    variants: product.variants.map((v: typeof product.variants[number]) => ({
+      id: v.id,
+      name: v.name,
+      price: v.price ? Number(v.price) : null,
+      prices: JSON.parse(v.prices),
+      inStock: v.stock > 0,
+      imageUrl: v.imageUrl,
+    })),
+    attributes: product.attributes.map((a: typeof product.attributes[number]) => ({
+      name: a.name,
+      value: a.value,
+      group: a.group,
+    })),
+    modifiers: product.modifiers.map((m: typeof product.modifiers[number]) => ({
+      id: m.id,
+      name: m.name,
+      type: m.type,
+      required: m.required,
+      options: JSON.parse(m.options),
+    })),
+  };
+
+  return c.json(response);
 });
 
 // ============================================
@@ -579,11 +584,13 @@ products.get('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, as
   ]);
 
   return c.json({
-    items,
-    total,
-    page: parseInt(page),
-    limit: parseInt(limit),
-    pages: Math.ceil(total / take),
+    products: items,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / take),
+    },
   });
 });
 
