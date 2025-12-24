@@ -1,0 +1,15 @@
+---
+/**
+ * Products Catalog Page
+ *
+ * Public catalog with categories, search, filtering and pagination
+ */
+import Base from '../../layouts/Base.astro';
+import CatalogPage from '../../components/catalog/CatalogPage.svelte';
+
+export const prerender = false;
+---
+
+<Base title="Каталог товаров" description="Каталог товаров с фильтрацией по категориям и ценам">
+  <CatalogPage client:load />
+</Base>

@@ -68,6 +68,14 @@ auth.post('/login', zValidator('json', loginSchema), async (c) => {
       }, 401);
     }
 
+    // Phase 3: Check if user is active
+    if (!user.isActive) {
+      return c.json({
+        error: 'Account is disabled',
+        code: 'ACCOUNT_DISABLED',
+      }, 403);
+    }
+
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
@@ -82,6 +90,7 @@ auth.post('/login', zValidator('json', loginSchema), async (c) => {
       userId: user.id,
       email: user.email,
       role: user.role,
+      isSuperadmin: user.isSuperadmin,
     });
 
     // Store refresh token in database
@@ -101,6 +110,7 @@ auth.post('/login', zValidator('json', loginSchema), async (c) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        isSuperadmin: user.isSuperadmin,
       },
       accessToken,
       refreshToken,
@@ -154,11 +164,21 @@ auth.post('/refresh', zValidator('json', refreshSchema), async (c) => {
       }, 401);
     }
 
+    // Phase 3: Check if user is still active
+    if (!session.user.isActive) {
+      await prisma.session.delete({ where: { id: session.id } });
+      return c.json({
+        error: 'Account is disabled',
+        code: 'ACCOUNT_DISABLED',
+      }, 403);
+    }
+
     // Generate new access token
     const accessToken = await generateAccessToken({
       userId: session.user.id,
       email: session.user.email,
       role: session.user.role,
+      isSuperadmin: session.user.isSuperadmin,
     });
 
     return c.json({ accessToken });
@@ -209,6 +229,8 @@ auth.get('/me', authMiddleware, async (c) => {
         email: true,
         name: true,
         role: true,
+        isSuperadmin: true,
+        isActive: true,
         createdAt: true,
       },
     });
@@ -256,10 +278,11 @@ auth.post('/register', zValidator('json', registerSchema), async (c) => {
       const token = authHeader.replace('Bearer ', '');
       const payload = await verifyToken(token);
 
-      if (!payload || payload.type !== 'access' || payload.role !== 'admin') {
+      // Phase 3: Check for superadmin instead of admin role
+      if (!payload || payload.type !== 'access' || !payload.isSuperadmin) {
         return c.json({
-          error: 'Admin access required',
-          code: 'ADMIN_REQUIRED',
+          error: 'Superadmin access required',
+          code: 'SUPERADMIN_REQUIRED',
         }, 403);
       }
     }
@@ -279,27 +302,51 @@ auth.post('/register', zValidator('json', registerSchema), async (c) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user (first user is always admin)
+    // Create user (first user is always admin + superadmin)
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
         role: isFirstUser ? 'admin' : role,
+        isSuperadmin: isFirstUser,  // Phase 3: first user is superadmin
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
+        isSuperadmin: true,
         createdAt: true,
       },
     });
+
+    // If first user, create default site with menus
+    let defaultSite = null;
+    if (isFirstUser) {
+      defaultSite = await prisma.site.create({
+        data: {
+          name: 'Default Site',
+          slug: 'default',
+          ownerId: user.id,
+          settings: '{}',
+        },
+      });
+
+      // Create default menus for the site
+      await prisma.menu.createMany({
+        data: [
+          { name: 'Header Menu', slug: 'header', location: 'header', items: '[]', siteId: defaultSite.id },
+          { name: 'Footer Menu', slug: 'footer', location: 'footer', items: '[]', siteId: defaultSite.id },
+        ],
+      });
+    }
 
     return c.json({
       message: 'User created successfully',
       user,
       isFirstUser,
+      ...(defaultSite && { site: { id: defaultSite.id, slug: defaultSite.slug, name: defaultSite.name } }),
     }, 201);
   } catch (error) {
     console.error('Register error:', error);

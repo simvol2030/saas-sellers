@@ -1,0 +1,23 @@
+---
+/**
+ * Admin Orders List
+ *
+ * Order management for e-commerce
+ */
+import Admin from '../../../layouts/Admin.astro';
+import OrdersList from '../../../components/admin/OrdersList.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Заказы">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <OrdersList client:load />
+</Admin>
