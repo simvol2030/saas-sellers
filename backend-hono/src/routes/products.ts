@@ -137,64 +137,9 @@ const productSchema = z.object({
 
 const updateProductSchema = productSchema.partial();
 
-// Apply common middlewares for admin routes
-products.use('*', authMiddleware);
-products.use('*', editorOrAdmin);
-products.use('*', siteMiddleware);
-
-// GET /api/admin/products - List products with filters
-products.get('/', requireSite, async (c) => {
-  const siteId = c.get('siteId');
-  const {
-    page = '1',
-    limit = '20',
-    status,
-    categoryId,
-    search,
-    productType,
-    featured,
-  } = c.req.query();
-
-  const skip = (parseInt(page) - 1) * parseInt(limit);
-  const take = parseInt(limit);
-
-  const where: Record<string, unknown> = { siteId };
-
-  if (status) where.status = status;
-  if (categoryId) where.categoryId = parseInt(categoryId);
-  if (productType) where.productType = productType;
-  if (featured === 'true') where.featured = true;
-  if (search) {
-    where.OR = [
-      { name: { contains: search } },
-      { sku: { contains: search } },
-      { description: { contains: search } },
-    ];
-  }
-
-  const [items, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      include: {
-        category: { select: { id: true, name: true, slug: true } },
-        images: { where: { isMain: true }, take: 1 },
-        _count: { select: { variants: true } },
-      },
-      orderBy: { updatedAt: 'desc' },
-      skip,
-      take,
-    }),
-    prisma.product.count({ where }),
-  ]);
-
-  return c.json({
-    items,
-    total,
-    page: parseInt(page),
-    limit: parseInt(limit),
-    pages: Math.ceil(total / take),
-  });
-});
+// ============================================
+// PUBLIC ENDPOINTS (no auth required)
+// ============================================
 
 // GET /api/products/public - Public product list
 products.get('/public', publicSiteMiddleware, async (c) => {
@@ -261,15 +206,372 @@ products.get('/public', publicSiteMiddleware, async (c) => {
         stock: true,
         trackStock: true,
         featured: true,
-        category: { select: { id: true, name: true, slug: true } },
         images: {
           where: { isMain: true },
           take: 1,
           select: { url: true, alt: true },
         },
-        _count: { select: { variants: true } },
+        category: {
+          select: { id: true, name: true, slug: true },
+        },
       },
       orderBy,
+      skip,
+      take,
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  // Format response
+  type PublicProductItem = typeof items[number];
+  const formattedItems = items.map((p: PublicProductItem) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    shortDesc: p.shortDesc,
+    price: Number(p.price),
+    comparePrice: p.comparePrice ? Number(p.comparePrice) : null,
+    prices: JSON.parse(p.prices),
+    inStock: !p.trackStock || p.stock > 0,
+    featured: p.featured,
+    image: p.images[0]?.url || null,
+    category: p.category,
+  }));
+
+  return c.json({
+    items: formattedItems,
+    total,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    pages: Math.ceil(total / take),
+  });
+});
+
+// GET /api/products/public/:slug - Public product by slug
+products.get('/public/:slug', publicSiteMiddleware, async (c) => {
+  const siteId = c.get('siteId');
+  const slug = c.req.param('slug');
+
+  if (!siteId) {
+    return c.json({ error: 'Site ID required' }, 400);
+  }
+
+  const product = await prisma.product.findFirst({
+    where: {
+      siteId,
+      slug,
+      status: 'published',
+    },
+    include: {
+      category: { select: { id: true, name: true, slug: true } },
+      images: { orderBy: { position: 'asc' } },
+      variants: { where: { isActive: true }, orderBy: { position: 'asc' } },
+      attributes: { orderBy: { name: 'asc' } },
+      modifiers: { orderBy: { position: 'asc' } },
+    },
+  });
+
+  if (!product) {
+    return c.json({ error: 'Product not found' }, 404);
+  }
+
+  // Format response for public consumption
+  const response = {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    description: product.description,
+    shortDesc: product.shortDesc,
+    price: Number(product.price),
+    comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+    prices: JSON.parse(product.prices),
+    inStock: !product.trackStock || product.stock > 0,
+    stock: product.trackStock ? product.stock : null,
+    featured: product.featured,
+    productType: product.productType,
+    category: product.category,
+    images: product.images.map((img: typeof product.images[number]) => ({
+      url: img.url,
+      alt: img.alt,
+      isMain: img.isMain,
+    })),
+    variants: product.variants.map((v: typeof product.variants[number]) => ({
+      id: v.id,
+      name: v.name,
+      price: v.price ? Number(v.price) : null,
+      prices: JSON.parse(v.prices),
+      inStock: v.stock > 0,
+      imageUrl: v.imageUrl,
+    })),
+    attributes: product.attributes.map((a: typeof product.attributes[number]) => ({
+      name: a.name,
+      value: a.value,
+      group: a.group,
+    })),
+    modifiers: product.modifiers.map((m: typeof product.modifiers[number]) => ({
+      id: m.id,
+      name: m.name,
+      type: m.type,
+      required: m.required,
+      options: JSON.parse(m.options),
+    })),
+  };
+
+  return c.json(response);
+});
+
+// GET /api/products/public/featured - Featured products
+products.get('/public/featured', publicSiteMiddleware, async (c) => {
+  const siteId = c.get('siteId');
+  const limit = parseInt(c.req.query('limit') || '8');
+
+  if (!siteId) {
+    return c.json({ error: 'Site ID required' }, 400);
+  }
+
+  const items = await prisma.product.findMany({
+    where: {
+      siteId,
+      status: 'published',
+      featured: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      shortDesc: true,
+      price: true,
+      comparePrice: true,
+      prices: true,
+      stock: true,
+      trackStock: true,
+      images: {
+        where: { isMain: true },
+        take: 1,
+        select: { url: true, alt: true },
+      },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: limit,
+  });
+
+  type FeaturedProductItem = typeof items[number];
+  const formattedItems = items.map((p: FeaturedProductItem) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    shortDesc: p.shortDesc,
+    price: Number(p.price),
+    comparePrice: p.comparePrice ? Number(p.comparePrice) : null,
+    prices: JSON.parse(p.prices),
+    inStock: !p.trackStock || p.stock > 0,
+    image: p.images[0]?.url || null,
+  }));
+
+  return c.json({ items: formattedItems });
+});
+
+// GET /api/products/public/search - Search products
+products.get('/public/search', publicSiteMiddleware, async (c) => {
+  const siteId = c.get('siteId');
+  const query = c.req.query('q') || '';
+  const limit = parseInt(c.req.query('limit') || '10');
+
+  if (!siteId) {
+    return c.json({ error: 'Site ID required' }, 400);
+  }
+
+  if (query.length < 2) {
+    return c.json({ items: [] });
+  }
+
+  const items = await prisma.product.findMany({
+    where: {
+      siteId,
+      status: 'published',
+      OR: [
+        { name: { contains: query } },
+        { shortDesc: { contains: query } },
+        { sku: { contains: query } },
+      ],
+    },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      price: true,
+      prices: true,
+      images: {
+        where: { isMain: true },
+        take: 1,
+        select: { url: true },
+      },
+    },
+    take: limit,
+  });
+
+  type SearchProductItem = typeof items[number];
+  const formattedItems = items.map((p: SearchProductItem) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    price: Number(p.price),
+    prices: JSON.parse(p.prices),
+    image: p.images[0]?.url || null,
+  }));
+
+  return c.json({ items: formattedItems });
+});
+
+// GET /api/products/public/category/:slug - Products by category
+products.get('/public/category/:slug', publicSiteMiddleware, async (c) => {
+  const siteId = c.get('siteId');
+  const categorySlug = c.req.param('slug');
+  const page = parseInt(c.req.query('page') || '1');
+  const limit = parseInt(c.req.query('limit') || '20');
+  const sort = c.req.query('sort') || 'newest';
+
+  if (!siteId) {
+    return c.json({ error: 'Site ID required' }, 400);
+  }
+
+  // Find category
+  const category = await prisma.productCategory.findFirst({
+    where: { siteId, slug: categorySlug },
+    include: {
+      parent: { select: { id: true, name: true, slug: true } },
+      children: {
+        select: { id: true, name: true, slug: true, image: true },
+        orderBy: { position: 'asc' },
+      },
+    },
+  });
+
+  if (!category) {
+    return c.json({ error: 'Category not found' }, 404);
+  }
+
+  const skip = (page - 1) * limit;
+
+  let orderBy: Record<string, string> = { createdAt: 'desc' };
+  switch (sort) {
+    case 'price_asc': orderBy = { price: 'asc' }; break;
+    case 'price_desc': orderBy = { price: 'desc' }; break;
+    case 'name_asc': orderBy = { name: 'asc' }; break;
+    case 'name_desc': orderBy = { name: 'desc' }; break;
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.product.findMany({
+      where: {
+        siteId,
+        categoryId: category.id,
+        status: 'published',
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        shortDesc: true,
+        price: true,
+        comparePrice: true,
+        prices: true,
+        stock: true,
+        trackStock: true,
+        featured: true,
+        images: {
+          where: { isMain: true },
+          take: 1,
+          select: { url: true, alt: true },
+        },
+      },
+      orderBy,
+      skip,
+      take: limit,
+    }),
+    prisma.product.count({
+      where: {
+        siteId,
+        categoryId: category.id,
+        status: 'published',
+      },
+    }),
+  ]);
+
+  type CategoryProductItem = typeof items[number];
+  const formattedItems = items.map((p: CategoryProductItem) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    shortDesc: p.shortDesc,
+    price: Number(p.price),
+    comparePrice: p.comparePrice ? Number(p.comparePrice) : null,
+    prices: JSON.parse(p.prices),
+    inStock: !p.trackStock || p.stock > 0,
+    featured: p.featured,
+    image: p.images[0]?.url || null,
+  }));
+
+  return c.json({
+    category: {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      parent: category.parent,
+      children: category.children,
+    },
+    items: formattedItems,
+    total,
+    page,
+    limit,
+    pages: Math.ceil(total / limit),
+  });
+});
+
+// ============================================
+// ADMIN ENDPOINTS (auth required)
+// ============================================
+
+// GET /api/admin/products - List products with filters
+products.get('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, async (c) => {
+  const siteId = c.get('siteId');
+  const {
+    page = '1',
+    limit = '20',
+    status,
+    categoryId,
+    search,
+    productType,
+    featured,
+  } = c.req.query();
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const take = parseInt(limit);
+
+  const where: Record<string, unknown> = { siteId };
+
+  if (status) where.status = status;
+  if (categoryId) where.categoryId = parseInt(categoryId);
+  if (productType) where.productType = productType;
+  if (featured === 'true') where.featured = true;
+  if (search) {
+    where.OR = [
+      { name: { contains: search } },
+      { sku: { contains: search } },
+      { description: { contains: search } },
+    ];
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      include: {
+        category: { select: { id: true, name: true, slug: true } },
+        images: { where: { isMain: true }, take: 1 },
+        _count: { select: { variants: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
       skip,
       take,
     }),
@@ -280,12 +582,13 @@ products.get('/public', publicSiteMiddleware, async (c) => {
     items,
     total,
     page: parseInt(page),
+    limit: parseInt(limit),
     pages: Math.ceil(total / take),
   });
 });
 
 // GET /api/admin/products/:id - Get single product
-products.get('/:id', requireSite, async (c) => {
+products.get('/:id', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, async (c) => {
   const id = parseInt(c.req.param('id'));
   const siteId = c.get('siteId');
 
@@ -326,56 +629,8 @@ products.get('/:id', requireSite, async (c) => {
   return c.json(result);
 });
 
-// GET /api/products/public/:slug - Public product by slug
-products.get('/public/:slug', publicSiteMiddleware, async (c) => {
-  const slug = c.req.param('slug');
-  const siteId = c.get('siteId');
-
-  if (!siteId) {
-    return c.json({ error: 'Site ID required' }, 400);
-  }
-
-  const product = await prisma.product.findFirst({
-    where: { slug, siteId, status: 'published' },
-    include: {
-      category: { select: { id: true, name: true, slug: true } },
-      images: { orderBy: { position: 'asc' } },
-      variants: {
-        where: { isActive: true },
-        orderBy: { position: 'asc' },
-      },
-      attributes: true,
-      modifiers: { orderBy: { position: 'asc' } },
-    },
-  });
-
-  if (!product) {
-    return c.json({ error: 'Product not found' }, 404);
-  }
-
-  // Parse JSON fields
-  type VariantResult2 = typeof product.variants[number];
-  type ModifierResult2 = typeof product.modifiers[number];
-
-  const result = {
-    ...product,
-    prices: JSON.parse(product.prices),
-    variants: product.variants.map((v: VariantResult2) => ({
-      ...v,
-      prices: JSON.parse(v.prices),
-      options: JSON.parse(v.options),
-    })),
-    modifiers: product.modifiers.map((m: ModifierResult2) => ({
-      ...m,
-      options: JSON.parse(m.options),
-    })),
-  };
-
-  return c.json(result);
-});
-
 // POST /api/admin/products - Create product
-products.post('/', requireSite, requireSection('products'), zValidator('json', productSchema), async (c) => {
+products.post('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), zValidator('json', productSchema), async (c) => {
   const siteId = c.get('siteId');
   const data = c.req.valid('json');
 
@@ -444,7 +699,7 @@ products.post('/', requireSite, requireSection('products'), zValidator('json', p
 });
 
 // PUT /api/admin/products/:id - Update product
-products.put('/:id', requireSite, requireSection('products'), zValidator('json', updateProductSchema), async (c) => {
+products.put('/:id', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), zValidator('json', updateProductSchema), async (c) => {
   const id = parseInt(c.req.param('id'));
   const siteId = c.get('siteId');
   const data = c.req.valid('json');
@@ -551,7 +806,7 @@ products.put('/:id', requireSite, requireSection('products'), zValidator('json',
 });
 
 // DELETE /api/admin/products/:id - Delete product
-products.delete('/:id', requireSite, requireSection('products'), async (c) => {
+products.delete('/:id', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), async (c) => {
   const id = parseInt(c.req.param('id'));
   const siteId = c.get('siteId');
 
@@ -571,7 +826,7 @@ products.delete('/:id', requireSite, requireSection('products'), async (c) => {
 });
 
 // POST /api/admin/products/:id/duplicate - Duplicate product
-products.post('/:id/duplicate', requireSite, requireSection('products'), async (c) => {
+products.post('/:id/duplicate', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), async (c) => {
   const id = parseInt(c.req.param('id'));
   const siteId = c.get('siteId');
 
@@ -656,7 +911,7 @@ products.post('/:id/duplicate', requireSite, requireSection('products'), async (
 });
 
 // POST /api/admin/products/bulk-status - Bulk status update
-products.post('/bulk-status', requireSite, requireSection('products'), zValidator('json', z.object({
+products.post('/bulk-status', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), zValidator('json', z.object({
   ids: z.array(z.number().int()),
   status: z.enum(['draft', 'published', 'archived']),
 })), async (c) => {
@@ -672,7 +927,7 @@ products.post('/bulk-status', requireSite, requireSection('products'), zValidato
 });
 
 // POST /api/admin/products/bulk-delete - Bulk delete
-products.post('/bulk-delete', requireSite, requireSection('products'), zValidator('json', z.object({
+products.post('/bulk-delete', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, requireSection('products'), zValidator('json', z.object({
   ids: z.array(z.number().int()),
 })), async (c) => {
   const siteId = c.get('siteId');
@@ -683,189 +938,6 @@ products.post('/bulk-delete', requireSite, requireSection('products'), zValidato
   });
 
   return c.json({ deleted: result.count });
-});
-
-// =============================================
-// Additional Public Endpoints
-// =============================================
-
-// GET /api/products/public/featured - Featured products
-products.get('/public/featured', publicSiteMiddleware, async (c) => {
-  const siteId = c.get('siteId');
-  const limit = Math.min(parseInt(c.req.query('limit') || '8'), 20);
-
-  if (!siteId) {
-    return c.json({ error: 'Site ID required' }, 400);
-  }
-
-  const products = await prisma.product.findMany({
-    where: {
-      siteId,
-      status: 'published',
-      featured: true,
-    },
-    include: {
-      category: { select: { id: true, name: true, slug: true } },
-      images: { orderBy: { position: 'asc' }, take: 1 },
-    },
-    orderBy: { updatedAt: 'desc' },
-    take: limit,
-  });
-
-  type FeaturedProduct = typeof products[number];
-  const result = products.map((p: FeaturedProduct) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    shortDesc: p.shortDesc,
-    prices: JSON.parse(p.prices),
-    comparePrice: p.comparePrice,
-    category: p.category,
-    image: p.images[0]?.url || null,
-  }));
-
-  return c.json({ products: result });
-});
-
-// GET /api/products/public/search - Search products
-products.get('/public/search', publicSiteMiddleware, async (c) => {
-  const siteId = c.get('siteId');
-  const q = c.req.query('q') || '';
-  const limit = Math.min(parseInt(c.req.query('limit') || '10'), 50);
-
-  if (!siteId) {
-    return c.json({ error: 'Site ID required' }, 400);
-  }
-
-  if (q.length < 2) {
-    return c.json({ products: [] });
-  }
-
-  const products = await prisma.product.findMany({
-    where: {
-      siteId,
-      status: 'published',
-      OR: [
-        { name: { contains: q } },
-        { description: { contains: q } },
-        { sku: { contains: q } },
-      ],
-    },
-    include: {
-      images: { orderBy: { position: 'asc' }, take: 1 },
-    },
-    take: limit,
-  });
-
-  type SearchProduct = typeof products[number];
-  const result = products.map((p: SearchProduct) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    prices: JSON.parse(p.prices),
-    image: p.images[0]?.url || null,
-  }));
-
-  return c.json({ products: result });
-});
-
-// GET /api/products/public/category/:slug - Products by category slug
-products.get('/public/category/:slug', publicSiteMiddleware, async (c) => {
-  const siteId = c.get('siteId');
-  const categorySlug = c.req.param('slug');
-  const page = Math.max(1, parseInt(c.req.query('page') || '1'));
-  const limit = Math.min(parseInt(c.req.query('limit') || '20'), 100);
-
-  if (!siteId) {
-    return c.json({ error: 'Site ID required' }, 400);
-  }
-
-  // Find category
-  const category = await prisma.productCategory.findFirst({
-    where: { siteId, slug: categorySlug },
-    include: {
-      parent: { select: { id: true, name: true, slug: true } },
-      children: {
-        select: { id: true, name: true, slug: true, image: true },
-        orderBy: { position: 'asc' },
-      },
-    },
-  });
-
-  if (!category) {
-    return c.json({ error: 'Category not found' }, 404);
-  }
-
-  // Get all child category IDs (for including products from subcategories)
-  const categoryIds = [category.id];
-  async function getChildIds(parentId: number) {
-    const children = await prisma.productCategory.findMany({
-      where: { parentId },
-      select: { id: true },
-    });
-    for (const child of children) {
-      categoryIds.push(child.id);
-      await getChildIds(child.id);
-    }
-  }
-  await getChildIds(category.id);
-
-  // Count and fetch products
-  const total = await prisma.product.count({
-    where: {
-      siteId,
-      status: 'published',
-      categoryId: { in: categoryIds },
-    },
-  });
-
-  const products = await prisma.product.findMany({
-    where: {
-      siteId,
-      status: 'published',
-      categoryId: { in: categoryIds },
-    },
-    include: {
-      category: { select: { id: true, name: true, slug: true } },
-      images: { orderBy: { position: 'asc' }, take: 1 },
-    },
-    orderBy: { updatedAt: 'desc' },
-    skip: (page - 1) * limit,
-    take: limit,
-  });
-
-  type CategoryProduct = typeof products[number];
-  const result = products.map((p: CategoryProduct) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    shortDesc: p.shortDesc,
-    prices: JSON.parse(p.prices),
-    comparePrice: p.comparePrice,
-    category: p.category,
-    image: p.images[0]?.url || null,
-  }));
-
-  return c.json({
-    category: {
-      id: category.id,
-      name: category.name,
-      slug: category.slug,
-      description: category.description,
-      image: category.image,
-      metaTitle: category.metaTitle,
-      metaDescription: category.metaDescription,
-      parent: category.parent,
-      children: category.children,
-    },
-    products: result,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  });
 });
 
 export default products;
