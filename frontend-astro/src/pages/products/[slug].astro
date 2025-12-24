@@ -1,0 +1,17 @@
+---
+/**
+ * Product Detail Page
+ *
+ * Single product view with gallery, variants, add to cart
+ */
+import Base from '../../layouts/Base.astro';
+import ProductDetail from '../../components/catalog/ProductDetail.svelte';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+---
+
+<Base title="Товар" description="Подробная информация о товаре">
+  <ProductDetail slug={slug || ''} client:load />
+</Base>

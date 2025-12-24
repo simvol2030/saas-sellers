@@ -14,6 +14,9 @@
 import '../styles/theme.css';
 import '../styles/global.css';
 
+// Import SiteSelector (Phase 3)
+import SiteSelector from '../components/admin/SiteSelector.svelte';
+
 // Force SSR for admin pages
 export const prerender = false;
 
@@ -24,13 +27,28 @@ interface Props {
 
 const { title, description } = Astro.props;
 
-// Navigation items
+// Navigation items with section permissions (Phase 3)
+// section: null = always visible, string = check permission
 const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: 'dashboard' },
-  { href: '/admin/pages', label: 'Страницы', icon: 'pages' },
-  { href: '/admin/media', label: 'Медиа', icon: 'media' },
-  { href: '/admin/theme', label: 'Дизайн', icon: 'theme' },
-  { href: '/admin/settings', label: 'Настройки', icon: 'settings' },
+  { href: '/admin', label: 'Dashboard', icon: 'dashboard', section: null },
+  { href: '/admin/pages', label: 'Страницы', icon: 'pages', section: 'pages' },
+  { href: '/admin/blocks', label: 'Блоки', icon: 'blocks', section: 'blocks' },
+  { href: '/admin/menus', label: 'Меню', icon: 'menus', section: 'menus' },
+  { href: '/admin/media', label: 'Медиа', icon: 'media', section: 'media' },
+  { href: '/admin/theme', label: 'Дизайн', icon: 'theme', section: null }, // uses editorOrAdmin, not section-based
+  { href: '/admin/settings', label: 'Настройки', icon: 'settings', section: 'settings' },
+  // Phase 4: E-commerce
+  { href: '/admin/products', label: 'Товары', icon: 'products', section: 'products' },
+  { href: '/admin/categories', label: 'Категории', icon: 'categories', section: 'products' },
+  { href: '/admin/currencies', label: 'Валюты', icon: 'currencies', section: 'currencies' },
+  { href: '/admin/orders', label: 'Заказы', icon: 'orders', section: 'orders' },
+  // Phase 4+5: Payments & Additional
+  { href: '/admin/payments', label: 'Платежи', icon: 'payments', section: 'payments' },
+  { href: '/admin/promo', label: 'Промокоды', icon: 'promo', section: 'promo' },
+  { href: '/admin/notifications', label: 'Уведомления', icon: 'notifications', section: 'notifications' },
+  // Phase 6: Analytics & Reviews
+  { href: '/admin/stats', label: 'Статистика', icon: 'stats', section: 'orders' },
+  { href: '/admin/reviews', label: 'Отзывы', icon: 'reviews', section: 'products' },
 ];
 
 const currentPath = Astro.url.pathname;
@@ -82,11 +100,27 @@ const currentPath = Astro.url.pathname;
               'nav-item',
               { active: currentPath === item.href || (item.href !== '/admin' && currentPath.startsWith(item.href)) }
             ]}
+            data-section={item.section || ''}
           >
             <span class="nav-icon" data-icon={item.icon}></span>
             <span class="nav-label">{item.label}</span>
           </a>
         ))}
+
+        <!-- Superadmin-only navigation (Phase 3) -->
+        <div id="superadmin-nav" style="display: none;">
+          <div class="nav-separator"></div>
+          <a
+            href="/admin/users"
+            class:list={[
+              'nav-item',
+              { active: currentPath === '/admin/users' || currentPath.startsWith('/admin/users/') }
+            ]}
+          >
+            <span class="nav-icon" data-icon="users"></span>
+            <span class="nav-label">Пользователи</span>
+          </a>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -110,6 +144,9 @@ const currentPath = Astro.url.pathname;
         <h1 class="header-title">{title}</h1>
 
         <div class="header-actions">
+          <!-- Site selector (Phase 3) -->
+          <SiteSelector client:load />
+
           <!-- Theme toggle -->
           <button class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">
             <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -279,10 +316,30 @@ const currentPath = Astro.url.pathname;
 
     .nav-icon[data-icon="dashboard"]::before { content: '📊'; }
     .nav-icon[data-icon="pages"]::before { content: '📄'; }
+    .nav-icon[data-icon="blocks"]::before { content: '🧩'; }
+    .nav-icon[data-icon="menus"]::before { content: '☰'; }
     .nav-icon[data-icon="media"]::before { content: '🖼️'; }
     .nav-icon[data-icon="theme"]::before { content: '🎨'; }
     .nav-icon[data-icon="settings"]::before { content: '⚙️'; }
+    .nav-icon[data-icon="users"]::before { content: '👥'; }
     .nav-icon[data-icon="external"]::before { content: '🔗'; }
+    /* Phase 4: E-commerce icons */
+    .nav-icon[data-icon="products"]::before { content: '🛍️'; }
+    .nav-icon[data-icon="categories"]::before { content: '📁'; }
+    .nav-icon[data-icon="currencies"]::before { content: '💱'; }
+    .nav-icon[data-icon="orders"]::before { content: '📦'; }
+    /* Phase 4+5: Payments & Additional icons */
+    .nav-icon[data-icon="payments"]::before { content: '💳'; }
+    .nav-icon[data-icon="promo"]::before { content: '🎟️'; }
+    .nav-icon[data-icon="notifications"]::before { content: '🔔'; }
+    .nav-icon[data-icon="stats"]::before { content: '📊'; }
+    .nav-icon[data-icon="reviews"]::before { content: '⭐'; }
+
+    .nav-separator {
+      height: 1px;
+      background: var(--color-border);
+      margin: var(--spacing-3) var(--spacing-4);
+    }
 
     .sidebar-footer {
       padding: var(--spacing-4) var(--spacing-3);
@@ -553,7 +610,7 @@ const currentPath = Astro.url.pathname;
       window.location.href = '/admin/login';
     });
 
-    // Load user info
+    // Load user info and permissions
     async function loadUser() {
       const accessToken = localStorage.getItem('accessToken');
       if (!accessToken) return;
@@ -568,9 +625,53 @@ const currentPath = Astro.url.pathname;
           if (userName && data.user) {
             userName.textContent = data.user.name || data.user.email;
           }
+
+          // Phase 3: Show superadmin navigation
+          if (data.user?.isSuperadmin) {
+            const superadminNav = document.getElementById('superadmin-nav');
+            if (superadminNav) {
+              superadminNav.style.display = 'block';
+            }
+          }
+
+          // Phase 3: Load and apply section permissions
+          await loadPermissions(accessToken);
         }
       } catch (e) {
         // Ignore errors
+      }
+    }
+
+    // Phase 3: Load permissions and hide nav items without access
+    async function loadPermissions(accessToken: string) {
+      const siteId = localStorage.getItem('currentSiteId');
+      if (!siteId) return;
+
+      try {
+        const headers: HeadersInit = {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Site-ID': siteId,
+        };
+
+        const res = await fetch('/api/admin/users/me/permissions', { headers });
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const { isSuperadmin, isSiteOwner, permissions } = data;
+
+        // Superadmin and site owner see everything
+        if (isSuperadmin || isSiteOwner) return;
+
+        // Hide nav items based on section permissions
+        const navItems = document.querySelectorAll('.sidebar-nav .nav-item[data-section]');
+        navItems.forEach((item) => {
+          const section = item.getAttribute('data-section');
+          if (section && !permissions[section]) {
+            (item as HTMLElement).style.display = 'none';
+          }
+        });
+      } catch (e) {
+        // Ignore permission errors
       }
     }
 
