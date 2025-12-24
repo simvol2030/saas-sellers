@@ -2,22 +2,18 @@
  * Theme API - Theme Customization management
  *
  * Manages CSS variable overrides stored in ThemeOverride model.
- * All routes require authentication and site context.
+ * All routes require authentication.
  */
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { prisma } from '../lib/db.js';
-import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
-import { siteMiddleware, requireSite } from '../middleware/site.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const theme = new Hono();
 
-// Apply auth and site middleware to all routes
+// Apply auth middleware to all routes
 theme.use('*', authMiddleware);
-theme.use('*', editorOrAdmin);
-theme.use('*', siteMiddleware);
-theme.use('*', requireSite);
 
 // ==========================================
 // VALIDATION SCHEMAS
@@ -47,11 +43,8 @@ const bulkOverridesSchema = z.object({
 
 // GET /api/admin/theme - Get all theme overrides
 theme.get('/', async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const overrides = await prisma.themeOverride.findMany({
-      where: { siteId },
       orderBy: { name: 'asc' },
     });
 
@@ -89,11 +82,9 @@ theme.get('/', async (c) => {
 
 // GET /api/admin/theme/css - Get CSS variables string
 theme.get('/css', async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const overrides = await prisma.themeOverride.findMany({
-      where: { siteId, isActive: true },
+      where: { isActive: true },
       orderBy: { name: 'asc' },
     });
 
@@ -132,16 +123,11 @@ theme.get('/css', async (c) => {
 
 // POST /api/admin/theme - Create new override
 theme.post('/', zValidator('json', createOverrideSchema), async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const data = c.req.valid('json');
 
     const override = await prisma.themeOverride.create({
-      data: {
-        ...data,
-        siteId,
-      },
+      data,
     });
 
     return c.json(override, 201);
@@ -156,8 +142,6 @@ theme.post('/', zValidator('json', createOverrideSchema), async (c) => {
 
 // PUT /api/admin/theme/:id - Update override
 theme.put('/:id', zValidator('json', updateOverrideSchema), async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const id = parseInt(c.req.param('id'));
     const data = c.req.valid('json');
@@ -166,8 +150,8 @@ theme.put('/:id', zValidator('json', updateOverrideSchema), async (c) => {
       return c.json({ error: 'Invalid override ID' }, 400);
     }
 
-    const existing = await prisma.themeOverride.findFirst({
-      where: { id, siteId },
+    const existing = await prisma.themeOverride.findUnique({
+      where: { id },
     });
 
     if (!existing) {
@@ -188,8 +172,6 @@ theme.put('/:id', zValidator('json', updateOverrideSchema), async (c) => {
 
 // POST /api/admin/theme/bulk - Bulk upsert overrides
 theme.post('/bulk', zValidator('json', bulkOverridesSchema), async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const { overrides } = c.req.valid('json');
 
@@ -197,7 +179,7 @@ theme.post('/bulk', zValidator('json', bulkOverridesSchema), async (c) => {
     const results = await prisma.$transaction(
       overrides.map((override) =>
         prisma.themeOverride.upsert({
-          where: { siteId_name: { siteId, name: override.name } },
+          where: { name: override.name },
           update: {
             value: override.value,
             isActive: override.isActive ?? true,
@@ -206,7 +188,6 @@ theme.post('/bulk', zValidator('json', bulkOverridesSchema), async (c) => {
             name: override.name,
             value: override.value,
             isActive: override.isActive ?? true,
-            siteId,
           },
         })
       )
@@ -224,8 +205,6 @@ theme.post('/bulk', zValidator('json', bulkOverridesSchema), async (c) => {
 
 // DELETE /api/admin/theme/:id - Delete override
 theme.delete('/:id', async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const id = parseInt(c.req.param('id'));
 
@@ -233,8 +212,8 @@ theme.delete('/:id', async (c) => {
       return c.json({ error: 'Invalid override ID' }, 400);
     }
 
-    const existing = await prisma.themeOverride.findFirst({
-      where: { id, siteId },
+    const existing = await prisma.themeOverride.findUnique({
+      where: { id },
     });
 
     if (!existing) {
@@ -254,12 +233,8 @@ theme.delete('/:id', async (c) => {
 
 // POST /api/admin/theme/reset - Reset all overrides
 theme.post('/reset', async (c) => {
-  const siteId = c.get('siteId');
-
   try {
-    await prisma.themeOverride.deleteMany({
-      where: { siteId },
-    });
+    await prisma.themeOverride.deleteMany({});
 
     return c.json({ message: 'All theme overrides have been reset' });
   } catch (error) {

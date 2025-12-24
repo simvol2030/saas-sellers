@@ -311,38 +311,6 @@
     }
   }
 
-  // Export page to Markdown
-  async function exportPage() {
-    if (!pageId) return;
-
-    try {
-      const token = localStorage.getItem('accessToken');
-      const siteId = localStorage.getItem('currentSiteId');
-
-      const headers: HeadersInit = { Authorization: `Bearer ${token}` };
-      if (siteId) headers['X-Site-ID'] = siteId;
-
-      const response = await fetch(`/api/admin/pages/${pageId}/export`, { headers });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${page.slug || 'page'}.md`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      success = 'Страница экспортирована в MD';
-    } catch (e) {
-      console.error('Export error:', e);
-      error = 'Ошибка экспорта';
-    }
-  }
-
   // Track changes
   function markChanged() {
     hasUnsavedChanges = true;
@@ -390,16 +358,6 @@
         {/if}
       </div>
       <div class="header-actions">
-        {#if pageId}
-          <button
-            type="button"
-            onclick={exportPage}
-            class="btn btn-outline"
-            title="Экспорт в Markdown"
-          >
-            📄 Экспорт MD
-          </button>
-        {/if}
         {#if pageId && page.status}
           <button
             type="button"

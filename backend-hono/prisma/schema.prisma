@@ -1,7 +1,4 @@
-// Prisma Schema - Landing Builder + Admin Panel + E-commerce
-// Phase 1: Multisite, Page Hierarchy, Tags, Media Folders, Reusable Blocks, Menus
-// Phase 3: User Management, Permissions
-// Phase 4: E-commerce (Products, Orders, Payments, Multi-currency)
+// Prisma Schema - Landing Builder + Admin Panel
 // Для переключения на PostgreSQL измените provider и DATABASE_URL
 
 datasource db {
@@ -11,56 +8,7 @@ datasource db {
 }
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
-}
-
-// ==========================================
-// SITE (Multisite Support)
-// ==========================================
-
-model Site {
-  id          Int      @id @default(autoincrement())
-  name        String                    // "Мой сайт"
-  slug        String   @unique          // "my-site" (для URLs)
-  domain      String?  @unique          // "example.com"
-  subdomain   String?  @unique          // "site1" (site1.platform.com)
-
-  // Owner
-  ownerId     Int
-  owner       User     @relation("SiteOwner", fields: [ownerId], references: [id])
-
-  // Settings (JSON)
-  settings    String   @default("{}")   // Настройки сайта
-
-  // Relations
-  pages           Page[]
-  media           Media[]
-  mediaFolders    MediaFolder[]
-  siteSettings    SiteSetting[]
-  themeOverrides  ThemeOverride[]
-  menus           Menu[]
-  reusableBlocks  ReusableBlock[]
-  tags            Tag[]
-  userSites       UserSite[]      // Phase 3: users with access
-
-  // Phase 4: E-commerce
-  productCategories  ProductCategory[]
-  products           Product[]
-  carts              Cart[]
-  wishlists          Wishlist[]
-  orders             Order[]
-  promoCodes         PromoCode[]
-  shippingMethods    ShippingMethod[]
-  paymentProviders   PaymentProvider[]
-  notificationSettings NotificationSettings?
-  integration1C      Integration1C?
-
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("sites")
+  provider = "prisma-client-js"
 }
 
 // ==========================================
@@ -68,46 +16,21 @@ model Site {
 // ==========================================
 
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  password     String   // bcrypt hash
-  name         String?
-  role         String   @default("editor") // admin, editor, viewer
-  isSuperadmin Boolean  @default(false)    // Phase 3: superadmin flag
-  isActive     Boolean  @default(true)     // Phase 3: can disable users
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String   // bcrypt hash
+  name      String?
+  role      String   @default("editor") // admin, editor, viewer
 
   // Relations
-  pages           Page[]
-  media           Media[]
-  sessions        Session[]
-  ownedSites      Site[]          @relation("SiteOwner")
-  reusableBlocks  ReusableBlock[]
-  userSites       UserSite[]      // Phase 3: site access permissions
+  pages     Page[]
+  media     Media[]
+  sessions  Session[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("users")
-}
-
-// ==========================================
-// USER-SITE ACCESS (Phase 3)
-// ==========================================
-
-model UserSite {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  siteId      Int
-  permissions String   @default("{}") // JSON: {"pages": true, "blocks": true, ...}
-  createdAt   DateTime @default(now())
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, siteId], name: "userId_siteId")
-  @@index([userId])
-  @@index([siteId])
-  @@map("user_sites")
 }
 
 model Session {
@@ -131,7 +54,7 @@ model Session {
 
 model Page {
   id          Int      @id @default(autoincrement())
-  slug        String
+  slug        String   @unique
   title       String
   description String?
 
@@ -158,104 +81,22 @@ model Page {
   // Build options
   prerender   Boolean  @default(true) // SSG by default
 
-  // === NEW: Multisite ===
-  siteId      Int
-  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  // === NEW: Page Hierarchy (до 3 уровней) ===
-  parentId    Int?
-  parent      Page?    @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Page[]   @relation("PageHierarchy")
-  order       Int      @default(0)  // Порядок сортировки
-  level       Int      @default(0)  // 0, 1, 2 (до 3 уровней)
-  path        String?               // "/parent/child/grandchild" для быстрого поиска
-
   // Relations
   authorId    Int
   author      User     @relation(fields: [authorId], references: [id])
 
-  // === NEW: Tags ===
-  tags        PageTag[]
-
-  // === NEW: Reusable Blocks ===
-  blockUsages BlockUsage[]
-
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@unique([siteId, slug])  // Slug уникален в рамках сайта
-  @@index([siteId])
+  @@index([slug])
   @@index([status])
   @@index([authorId])
-  @@index([parentId])
-  @@index([path])
   @@map("pages")
-}
-
-// ==========================================
-// TAGS (for Pages)
-// ==========================================
-
-model Tag {
-  id        Int       @id @default(autoincrement())
-  name      String
-  slug      String
-  color     String?   // Цвет для UI (hex)
-
-  // Multisite
-  siteId    Int
-  site      Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  // Relations
-  pages     PageTag[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  @@unique([siteId, slug])
-  @@index([siteId])
-  @@map("tags")
-}
-
-model PageTag {
-  pageId    Int
-  tagId     Int
-  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([pageId, tagId])
-  @@map("page_tags")
 }
 
 // ==========================================
 // MEDIA
 // ==========================================
-
-model MediaFolder {
-  id        Int      @id @default(autoincrement())
-  name      String
-  slug      String
-
-  // Hierarchy
-  parentId  Int?
-  parent    MediaFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children  MediaFolder[] @relation("FolderHierarchy")
-
-  // Multisite
-  siteId    Int
-  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  // Relations
-  media     Media[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([siteId, parentId, slug])
-  @@index([siteId])
-  @@index([parentId])
-  @@map("media_folders")
-}
 
 model Media {
   id        Int      @id @default(autoincrement())
@@ -274,14 +115,6 @@ model Media {
   height    Int?     // for images
   duration  Int?     // for videos (seconds)
 
-  // === NEW: Multisite ===
-  siteId    Int?
-  site      Site?    @relation(fields: [siteId], references: [id], onDelete: SetNull)
-
-  // === NEW: Folder ===
-  folderId  Int?
-  folder    MediaFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
-
   // Relations
   uploadedById Int?
   uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
@@ -290,84 +123,7 @@ model Media {
 
   @@index([type])
   @@index([uploadedById])
-  @@index([siteId])
-  @@index([folderId])
   @@map("media")
-}
-
-// ==========================================
-// REUSABLE BLOCKS
-// ==========================================
-
-model ReusableBlock {
-  id          Int      @id @default(autoincrement())
-  name        String                    // "Hero + Features комбо"
-  slug        String
-  description String?
-  sections    String   @default("[]")   // JSON массив секций
-  category    String?                   // Категория блока
-  thumbnail   String?                   // Превью изображение
-
-  // Multisite
-  siteId      Int
-  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  // Author
-  authorId    Int
-  author      User     @relation(fields: [authorId], references: [id])
-
-  // Usage tracking
-  usages      BlockUsage[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([siteId, slug])
-  @@index([siteId])
-  @@index([authorId])
-  @@map("reusable_blocks")
-}
-
-model BlockUsage {
-  id          Int      @id @default(autoincrement())
-
-  blockId     Int
-  block       ReusableBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
-
-  pageId      Int
-  page        Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
-
-  position    Int      // Позиция в странице (индекс секции после которой вставлен)
-
-  createdAt   DateTime @default(now())
-
-  @@unique([pageId, position])
-  @@index([blockId])
-  @@index([pageId])
-  @@map("block_usages")
-}
-
-// ==========================================
-// MENUS
-// ==========================================
-
-model Menu {
-  id        Int      @id @default(autoincrement())
-  name      String                    // "Главное меню", "Footer меню"
-  slug      String                    // "main", "footer"
-  location  String   @default("header") // header, footer, sidebar
-  items     String   @default("[]")   // JSON массив MenuItem
-
-  // Multisite
-  siteId    Int
-  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([siteId, slug])
-  @@index([siteId])
-  @@map("menus")
 }
 
 // ==========================================
@@ -376,20 +132,14 @@ model Menu {
 
 model SiteSetting {
   id    Int    @id @default(autoincrement())
-  key   String
+  key   String @unique
   value String // JSON value
 
   // Grouping for UI
   group String @default("general") // general, theme, header, footer, seo
 
-  // === NEW: Multisite ===
-  siteId    Int
-  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
   updatedAt DateTime @updatedAt
 
-  @@unique([siteId, key])  // Key уникален в рамках сайта
-  @@index([siteId])
   @@index([group])
   @@map("site_settings")
 }
@@ -400,630 +150,12 @@ model SiteSetting {
 
 model ThemeOverride {
   id        Int      @id @default(autoincrement())
-  name      String   // e.g., "colors.light.primary"
+  name      String   @unique // e.g., "colors.light.primary"
   value     String   // CSS value
   isActive  Boolean  @default(true)
-
-  // === NEW: Multisite ===
-  siteId    Int
-  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([siteId, name])  // Name уникален в рамках сайта
-  @@index([siteId])
   @@map("theme_overrides")
-}
-
-// ==========================================
-// E-COMMERCE: CURRENCIES
-// ==========================================
-
-model Currency {
-  id          Int       @id @default(autoincrement())
-  code        String    @unique  // RUB, USD, EUR, CNY, KZT, PLN
-  symbol      String             // ₽, $, €, ¥, ₸, zł
-  name        String             // Рубль, Доллар, Евро...
-  rate        Decimal   @default(1) // Курс к базовой валюте
-  isDefault   Boolean   @default(false)
-  isActive    Boolean   @default(true)
-  position    Int       @default(0)
-
-  updatedAt   DateTime  @updatedAt
-
-  @@map("currencies")
-}
-
-// ==========================================
-// E-COMMERCE: PRODUCT CATEGORIES
-// ==========================================
-
-model ProductCategory {
-  id          Int       @id @default(autoincrement())
-  name        String
-  slug        String
-  description String?
-  image       String?
-
-  // Hierarchy
-  parentId    Int?
-  parent      ProductCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    ProductCategory[] @relation("CategoryHierarchy")
-  level       Int       @default(0)
-
-  // Business type hint (для UI)
-  businessType String?  // cafe, clothing, food, pet, household, general
-
-  // Multisite
-  siteId      Int
-  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  // SEO
-  metaTitle       String?
-  metaDescription String?
-
-  products    Product[]
-  position    Int       @default(0)
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([siteId, slug])
-  @@index([siteId])
-  @@index([parentId])
-  @@map("product_categories")
-}
-
-// ==========================================
-// E-COMMERCE: PRODUCTS
-// ==========================================
-
-model Product {
-  id          Int       @id @default(autoincrement())
-  name        String
-  slug        String
-  description String?   // Rich text / HTML
-  shortDesc   String?   // Краткое описание
-
-  // Pricing (в базовой валюте сайта)
-  price       Decimal   @default(0)
-  comparePrice Decimal? // Старая цена (для скидок)
-  costPrice   Decimal?  // Себестоимость
-
-  // Multi-currency prices (JSON)
-  // {"USD": 10.99, "EUR": 9.99, "RUB": 999}
-  prices      String    @default("{}")
-
-  // Inventory
-  sku         String?   // Артикул
-  barcode     String?
-  stock       Int       @default(0)
-  trackStock  Boolean   @default(true)
-  lowStockThreshold Int @default(5)
-
-  // Status
-  status      String    @default("draft") // draft, published, archived
-  featured    Boolean   @default(false)
-
-  // Physical
-  weight      Decimal?  // kg
-  dimensions  String?   // JSON: {length, width, height}
-
-  // Product type for variant templates
-  productType String    @default("general") // general, clothing, food, cafe, pet, household
-
-  // Relations
-  categoryId  Int?
-  category    ProductCategory? @relation(fields: [categoryId], references: [id])
-
-  images      ProductImage[]
-  variants    ProductVariant[]
-  attributes  ProductAttribute[]
-  modifiers   ProductModifier[]  // Для кафе: добавки, топпинги
-  reviews     Review[]           // Отзывы на товар
-  wishlistItems WishlistItem[]   // Избранное
-  orderItems  OrderItem[]
-  cartItems   CartItem[]
-
-  // Multisite
-  siteId      Int
-  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  // SEO
-  metaTitle       String?
-  metaDescription String?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([siteId, slug])
-  @@index([siteId])
-  @@index([categoryId])
-  @@index([status])
-  @@index([productType])
-  @@map("products")
-}
-
-model ProductImage {
-  id        Int      @id @default(autoincrement())
-  productId Int
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  url       String
-  alt       String?
-  position  Int      @default(0)
-  isMain    Boolean  @default(false)
-
-  @@index([productId])
-  @@map("product_images")
-}
-
-// ==========================================
-// E-COMMERCE: PRODUCT VARIANTS (Universal)
-// ==========================================
-
-model ProductVariant {
-  id        Int      @id @default(autoincrement())
-  productId Int
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  name      String   // "Красный / XL", "500г", "Большая порция"
-  sku       String?
-  barcode   String?
-
-  // Pricing
-  price       Decimal?  // null = use product price
-  comparePrice Decimal?
-  prices      String    @default("{}") // Multi-currency
-
-  // Inventory
-  stock     Int      @default(0)
-
-  // Image
-  imageUrl  String?
-
-  // Flexible options (JSON)
-  // Clothing: {"color": "red", "size": "XL", "material": "cotton"}
-  // Food: {"weight": "500g", "portion": "large"}
-  // Cafe: {"size": "L", "milk": "oat"}
-  // Pet: {"breed": "dog", "age": "adult", "weight": "10kg"}
-  options   String   @default("{}")
-
-  position  Int      @default(0)
-  isActive  Boolean  @default(true)
-
-  cartItems   CartItem[]
-  orderItems  OrderItem[]
-
-  @@index([productId])
-  @@map("product_variants")
-}
-
-// ==========================================
-// E-COMMERCE: PRODUCT ATTRIBUTES (Filters)
-// ==========================================
-
-model ProductAttribute {
-  id        Int      @id @default(autoincrement())
-  productId Int
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  name      String   // "Цвет", "Размер", "Вес", "Калории"
-  value     String   // "Красный", "XL", "500г", "250"
-  group     String?  // Группировка атрибутов
-
-  @@index([productId])
-  @@index([name])
-  @@map("product_attributes")
-}
-
-// ==========================================
-// E-COMMERCE: MODIFIERS (Для кафе/ресторанов)
-// ==========================================
-
-model ProductModifier {
-  id        Int      @id @default(autoincrement())
-  productId Int
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  name      String   // "Добавить сироп", "Выбрать молоко"
-  type      String   @default("single") // single, multiple
-  required  Boolean  @default(false)
-
-  options   String   @default("[]") // JSON array of modifier options
-  // [{"name": "Ванильный сироп", "price": 50}, {"name": "Карамельный", "price": 50}]
-
-  position  Int      @default(0)
-
-  @@index([productId])
-  @@map("product_modifiers")
-}
-
-// ==========================================
-// E-COMMERCE: REVIEWS
-// ==========================================
-
-model Review {
-  id          Int      @id @default(autoincrement())
-
-  productId   Int
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  // Author info
-  authorName  String
-  authorEmail String
-
-  // Review content
-  rating      Int      // 1-5
-  title       String?
-  content     String
-
-  // Status (pending, approved, rejected) - String instead of enum for SQLite
-  status      String   @default("pending")
-  isVerified  Boolean  @default(false)  // Verified purchase
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([productId])
-  @@index([status])
-  @@map("reviews")
-}
-
-// ==========================================
-// E-COMMERCE: WISHLIST
-// ==========================================
-
-model Wishlist {
-  id          Int      @id @default(autoincrement())
-  sessionId   String   @unique  // For guests
-  userId      Int?              // For logged in users
-
-  items       WishlistItem[]
-
-  // Multisite
-  siteId      Int
-  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([siteId])
-  @@index([userId])
-  @@map("wishlists")
-}
-
-model WishlistItem {
-  id          Int      @id @default(autoincrement())
-
-  wishlistId  Int
-  wishlist    Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
-
-  productId   Int
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  addedAt     DateTime @default(now())
-
-  @@unique([wishlistId, productId])
-  @@index([wishlistId])
-  @@index([productId])
-  @@map("wishlist_items")
-}
-
-// ==========================================
-// E-COMMERCE: CART
-// ==========================================
-
-model Cart {
-  id          Int       @id @default(autoincrement())
-  sessionId   String    @unique // Для гостей
-  userId      Int?      // Для авторизованных
-
-  currencyCode String   @default("RUB") // Выбранная валюта
-
-  items       CartItem[]
-
-  // Multisite
-  siteId      Int
-  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  expiresAt   DateTime
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([siteId])
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("carts")
-}
-
-model CartItem {
-  id        Int      @id @default(autoincrement())
-  cartId    Int
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-
-  productId Int
-  product   Product  @relation(fields: [productId], references: [id])
-
-  variantId Int?
-  variant   ProductVariant? @relation(fields: [variantId], references: [id])
-
-  quantity  Int      @default(1)
-  price     Decimal  // Зафиксированная цена
-
-  // Modifiers (для кафе)
-  modifiers String   @default("[]") // JSON: [{"name": "Сироп", "option": "Ваниль", "price": 50}]
-
-  @@index([cartId])
-  @@map("cart_items")
-}
-
-// ==========================================
-// E-COMMERCE: ORDERS
-// ==========================================
-
-model Order {
-  id          Int       @id @default(autoincrement())
-  orderNumber String    @unique // ORD-2024-00001
-
-  // Customer
-  userId      Int?
-  email       String
-  phone       String?
-  customerName String?
-
-  // Currency
-  currencyCode String   @default("RUB")
-  currencyRate Decimal  @default(1) // Курс на момент заказа
-
-  // Shipping
-  shippingAddress String  // JSON
-  shippingMethod  String?
-  shippingCost    Decimal @default(0)
-
-  // Totals
-  subtotal    Decimal
-  discount    Decimal   @default(0)
-  total       Decimal
-
-  // Promo
-  promoCode   String?
-  promoDiscount Decimal @default(0)
-
-  // Status
-  status      String    @default("pending") // pending, confirmed, paid, processing, shipped, delivered, cancelled, refunded
-  paymentStatus String  @default("pending") // pending, paid, failed, refunded
-  paymentMethod String? // yookassa, stripe, telegram_stars, cash
-  paymentId   String?   // External payment ID
-
-  // Notes
-  customerNote String?
-  adminNote   String?
-
-  items       OrderItem[]
-  statusHistory OrderStatusHistory[]
-
-  // Multisite
-  siteId      Int
-  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  // Notifications sent
-  emailSent     Boolean @default(false)
-  telegramSent  Boolean @default(false)
-
-  paidAt      DateTime?
-  shippedAt   DateTime?
-  deliveredAt DateTime?
-  cancelledAt DateTime?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([siteId])
-  @@index([status])
-  @@index([orderNumber])
-  @@index([email])
-  @@map("orders")
-}
-
-model OrderItem {
-  id        Int      @id @default(autoincrement())
-  orderId   Int
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  productId Int
-  product   Product  @relation(fields: [productId], references: [id])
-
-  variantId Int?
-  variant   ProductVariant? @relation(fields: [variantId], references: [id])
-
-  name      String   // Snapshot
-  sku       String?
-  price     Decimal
-  quantity  Int
-  total     Decimal
-
-  // Snapshot of selected options
-  options   String   @default("{}") // JSON
-  modifiers String   @default("[]") // JSON
-
-  @@index([orderId])
-  @@map("order_items")
-}
-
-model OrderStatusHistory {
-  id        Int      @id @default(autoincrement())
-  orderId   Int
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  status    String
-  note      String?
-  createdBy Int?     // userId
-
-  createdAt DateTime @default(now())
-
-  @@index([orderId])
-  @@map("order_status_history")
-}
-
-// ==========================================
-// E-COMMERCE: PROMO CODES
-// ==========================================
-
-model PromoCode {
-  id          Int       @id @default(autoincrement())
-  code        String
-  description String?
-
-  // Discount
-  type        String    // fixed, percent
-  value       Decimal
-  currencyCode String?  // Для fixed - в какой валюте
-
-  // Limits
-  minOrderAmount Decimal?
-  maxUses     Int?
-  usedCount   Int       @default(0)
-  maxUsesPerUser Int?
-
-  // Dates
-  startsAt    DateTime?
-  expiresAt   DateTime?
-
-  isActive    Boolean   @default(true)
-
-  // Multisite
-  siteId      Int
-  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([siteId, code])
-  @@index([siteId])
-  @@map("promo_codes")
-}
-
-// ==========================================
-// E-COMMERCE: SHIPPING METHODS
-// ==========================================
-
-model ShippingMethod {
-  id          Int       @id @default(autoincrement())
-  name        String
-  description String?
-
-  // Pricing
-  type        String    @default("fixed") // fixed, weight, free_above
-  price       Decimal   @default(0)
-  currencyCode String   @default("RUB")
-  freeAbove   Decimal?
-  pricePerKg  Decimal?
-
-  // Timing
-  minDays     Int?
-  maxDays     Int?
-
-  isActive    Boolean   @default(true)
-  position    Int       @default(0)
-
-  // Multisite
-  siteId      Int
-  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  @@index([siteId])
-  @@map("shipping_methods")
-}
-
-// ==========================================
-// E-COMMERCE: PAYMENT PROVIDERS
-// ==========================================
-
-model PaymentProvider {
-  id          Int       @id @default(autoincrement())
-  type        String    // yookassa, stripe, telegram_stars
-  name        String    // "YooKassa", "Stripe", "Telegram Stars"
-
-  // Credentials (encrypted or from env)
-  config      String    @default("{}") // JSON: {shopId, secretKey, ...}
-
-  isActive    Boolean   @default(false)
-  isTest      Boolean   @default(true) // Test mode
-  position    Int       @default(0)
-
-  // Multisite
-  siteId      Int
-  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([siteId, type])
-  @@index([siteId])
-  @@map("payment_providers")
-}
-
-// ==========================================
-// E-COMMERCE: NOTIFICATION SETTINGS
-// ==========================================
-
-model NotificationSettings {
-  id          Int       @id @default(autoincrement())
-
-  // Email (SMTP)
-  smtpHost    String?
-  smtpPort    Int?
-  smtpUser    String?
-  smtpPass    String?   // Encrypted
-  smtpFrom    String?
-
-  // Telegram
-  telegramBotToken String? // Encrypted
-  telegramChatId   String? // Group chat ID
-
-  // What to notify
-  notifyNewOrder      Boolean @default(true)
-  notifyPaymentReceived Boolean @default(true)
-  notifyLowStock      Boolean @default(true)
-
-  // Multisite
-  siteId      Int       @unique
-  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  updatedAt   DateTime  @updatedAt
-
-  @@map("notification_settings")
-}
-
-// ==========================================
-// E-COMMERCE: 1C INTEGRATION (Placeholder)
-// ==========================================
-
-model Integration1C {
-  id          Int       @id @default(autoincrement())
-
-  // Connection
-  baseUrl     String?
-  username    String?
-  password    String?   // Encrypted
-
-  // Sync settings
-  syncProducts  Boolean @default(false)
-  syncStock     Boolean @default(false)
-  syncOrders    Boolean @default(false)
-  syncInterval  Int     @default(60) // minutes
-
-  lastSyncAt  DateTime?
-  lastError   String?
-
-  isActive    Boolean   @default(false)
-
-  // Multisite
-  siteId      Int       @unique
-  site        Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-
-  updatedAt   DateTime  @updatedAt
-
-  @@map("integrations_1c")
 }

@@ -2,24 +2,18 @@
  * Settings API - Site Settings management
  *
  * Manages site-wide settings stored in SiteSetting model.
- * All routes require authentication and site context.
+ * All routes require authentication.
  */
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { prisma } from '../lib/db.js';
-import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
-import { siteMiddleware, requireSite } from '../middleware/site.js';
-import { requireSection } from '../middleware/permissions.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const settings = new Hono();
 
-// Apply auth and site middleware to all routes
+// Apply auth middleware to all routes
 settings.use('*', authMiddleware);
-settings.use('*', editorOrAdmin);
-settings.use('*', siteMiddleware);
-settings.use('*', requireSite);
-settings.use('*', requireSection('settings')); // Phase 3: section-based access
 
 // ==========================================
 // VALIDATION SCHEMAS
@@ -45,11 +39,8 @@ const bulkUpdateSchema = z.object({
 
 // GET /api/admin/settings - Get all settings
 settings.get('/', async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const allSettings = await prisma.siteSetting.findMany({
-      where: { siteId },
       orderBy: [{ group: 'asc' }, { key: 'asc' }],
     });
 
@@ -76,13 +67,11 @@ settings.get('/', async (c) => {
 
 // GET /api/admin/settings/:group - Get settings by group
 settings.get('/:group', async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const group = c.req.param('group');
 
     const groupSettings = await prisma.siteSetting.findMany({
-      where: { siteId, group },
+      where: { group },
       orderBy: { key: 'asc' },
     });
 
@@ -105,8 +94,6 @@ settings.get('/:group', async (c) => {
 
 // PUT /api/admin/settings/:key - Update single setting
 settings.put('/:key', zValidator('json', updateSettingSchema), async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const key = c.req.param('key');
     const { value } = c.req.valid('json');
@@ -115,7 +102,7 @@ settings.put('/:key', zValidator('json', updateSettingSchema), async (c) => {
     const group = key.includes('.') ? key.split('.')[0] : 'general';
 
     const setting = await prisma.siteSetting.upsert({
-      where: { siteId_key: { siteId, key } },
+      where: { key },
       update: {
         value: JSON.stringify(value),
         group,
@@ -124,7 +111,6 @@ settings.put('/:key', zValidator('json', updateSettingSchema), async (c) => {
         key,
         value: JSON.stringify(value),
         group,
-        siteId,
       },
     });
 
@@ -141,8 +127,6 @@ settings.put('/:key', zValidator('json', updateSettingSchema), async (c) => {
 
 // POST /api/admin/settings/bulk - Bulk update settings
 settings.post('/bulk', zValidator('json', bulkUpdateSchema), async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const { settings: updates } = c.req.valid('json');
 
@@ -151,7 +135,7 @@ settings.post('/bulk', zValidator('json', bulkUpdateSchema), async (c) => {
       updates.map((update) => {
         const group = update.group || (update.key.includes('.') ? update.key.split('.')[0] : 'general');
         return prisma.siteSetting.upsert({
-          where: { siteId_key: { siteId, key: update.key } },
+          where: { key: update.key },
           update: {
             value: JSON.stringify(update.value),
             group,
@@ -160,7 +144,6 @@ settings.post('/bulk', zValidator('json', bulkUpdateSchema), async (c) => {
             key: update.key,
             value: JSON.stringify(update.value),
             group,
-            siteId,
           },
         });
       })
@@ -178,13 +161,11 @@ settings.post('/bulk', zValidator('json', bulkUpdateSchema), async (c) => {
 
 // DELETE /api/admin/settings/:key - Delete a setting
 settings.delete('/:key', async (c) => {
-  const siteId = c.get('siteId');
-
   try {
     const key = c.req.param('key');
 
     const existing = await prisma.siteSetting.findUnique({
-      where: { siteId_key: { siteId, key } },
+      where: { key },
     });
 
     if (!existing) {
@@ -192,7 +173,7 @@ settings.delete('/:key', async (c) => {
     }
 
     await prisma.siteSetting.delete({
-      where: { siteId_key: { siteId, key } },
+      where: { key },
     });
 
     return c.json({ message: 'Setting deleted successfully' });

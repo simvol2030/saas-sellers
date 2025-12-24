@@ -18,7 +18,6 @@ export interface TokenPayload extends JWTPayload {
   userId: number;
   email: string;
   role: string;
-  isSuperadmin: boolean;  // Phase 3: superadmin flag
   type: 'access' | 'refresh';
 }
 
@@ -29,13 +28,11 @@ export async function generateAccessToken(payload: {
   userId: number;
   email: string;
   role: string;
-  isSuperadmin: boolean;
 }): Promise<string> {
   return new SignJWT({
     userId: payload.userId,
     email: payload.email,
     role: payload.role,
-    isSuperadmin: payload.isSuperadmin,
     type: 'access',
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -52,13 +49,11 @@ export async function generateRefreshToken(payload: {
   userId: number;
   email: string;
   role: string;
-  isSuperadmin: boolean;
 }): Promise<string> {
   return new SignJWT({
     userId: payload.userId,
     email: payload.email,
     role: payload.role,
-    isSuperadmin: payload.isSuperadmin,
     type: 'refresh',
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -87,7 +82,6 @@ export async function generateTokenPair(payload: {
   userId: number;
   email: string;
   role: string;
-  isSuperadmin: boolean;
 }): Promise<{ accessToken: string; refreshToken: string }> {
   const [accessToken, refreshToken] = await Promise.all([
     generateAccessToken(payload),

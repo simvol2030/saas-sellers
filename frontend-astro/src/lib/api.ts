@@ -81,13 +81,6 @@ export async function apiFetch<T = any>(
   if (accessToken && !skipAuth) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
-
-  // Add X-Site-ID header for multisite support
-  const currentSiteId = localStorage.getItem('currentSiteId');
-  if (currentSiteId) {
-    headers.set('X-Site-ID', currentSiteId);
-  }
-
   // Only set Content-Type for non-FormData bodies
   if (fetchOptions.body && !headers.has('Content-Type') && !(fetchOptions.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
@@ -149,27 +142,6 @@ export async function apiFetch<T = any>(
  */
 export function isAuthenticated(): boolean {
   return !!localStorage.getItem('accessToken');
-}
-
-/**
- * Get current site ID
- */
-export function getCurrentSiteId(): string | null {
-  return localStorage.getItem('currentSiteId');
-}
-
-/**
- * Set current site ID
- */
-export function setCurrentSiteId(siteId: string | number): void {
-  localStorage.setItem('currentSiteId', String(siteId));
-}
-
-/**
- * Clear current site ID
- */
-export function clearCurrentSiteId(): void {
-  localStorage.removeItem('currentSiteId');
 }
 
 /**
