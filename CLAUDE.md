@@ -1,23 +1,100 @@
-Цель этого проекта — развернуть стартовые коробки для использования при создании веб-приложений, 3 frontend-фреймворка и 3 backend-фреймворка.
- frontend-sveltekit
- frontend-astro
- frontend-qwik-city
- ---
- backend-expressjs
- backend-hono
- backend-fastify
- ---
- При этом каждый из них использует ORM Prisma с обращением к источникам данных тут: 
- /data/db/ и тут уже идут разные источники данных.
- 
- При этом алгоритм разворачивания такой: 
- 1. Изначально при помощи MCP Context7 запрашиваем актуальные совместимые версии, архитектуру, библиотеки и прочие актуальные нужны данные которые и актуальные и совместимые чтобы можно было на их базе стороить быстро разворачивать веб-приложения.
-И потом документируем все в md файл в директории docs каждого из фреймворков.
-2. А потом уже разворачиваем сразу используя ORM Prisma.
-3. Так же хорошо бы настроить сразу SQLite + WAL для использования в проектах.
-4. Цель получить готовые директории фреймворокв, чтобы скопировал и можно использовать для создания веб-приложений под прод уровень и выполнять деплой. Поэтому по каждому изначально после уточнения архитектуры составляем план, а потом уже его реализуем. С проверкой сборкой серверов и проверкой в браузере.
-5. Но при этом не допускать Over-engineering и не допускать Under-engineering принцип разумной достоточности. Но высокой степени готовности для быстрого использования при создании веб-приложений.
-6. Восновном веб-приложения которые будут делаться на базе этих заготвок это контентные сайты, магазины, агрегаторы, телеграм мини приложения, и SaaS-мини.
-7. Перед релизацией сначало проводишь нужный ресерчь включая Context7 MCP, и если нужно больше в интернете, потом план, потом согласование со мной, а после моего подтверждения уже реализация. А потом проверка включая в браузере, а только потом сообщение о готовности.
-8. Обязательно учитывать при релизаци развертываний коробок учесть базовые DevSecOps мероприятия, которые уместны и целесобразные, но не являются Over-engineering. 
-9. Если в чем-то сомневаешь и считаешь соласовать, то лучше спроси пото делай, но опять же без: Over-engineering. 
+# SaaS Sellers - Landing Builder
+
+**URL:** https://saas.mix-id.ru
+**Тип:** Landing Page Builder + CMS с админ-панелью
+**Workflow:** см. `CLAUDE.local.md`
+
+---
+
+## Пути проекта
+
+| Среда | Путь |
+|-------|------|
+| **WSL** | `/home/solo18/devapps/saas-sellers/project/project-box-combo-2` |
+| **Windows** | `\\wsl$\Ubuntu\home\solo18\devapps\saas-sellers\project\project-box-combo-2` |
+| **GitHub** | https://github.com/simvol2030/saas-sellers |
+| **GitHub ветка** | `main` (единственная рабочая) |
+| **Сервер** | `/opt/websites/saas.mix-id.ru` |
+
+---
+
+## PM2 (Production)
+
+| Процесс | Порт |
+|---------|------|
+| `saas-sellers-backend` | 3008 |
+| `saas-sellers-frontend` | 3017 |
+
+```bash
+source ~/.nvm/nvm.sh && pm2 restart saas-sellers-backend saas-sellers-frontend
+```
+
+---
+
+## Доступы
+
+**Admin Panel:** https://saas.mix-id.ru/admin/login
+- Credentials: создать через Prisma Studio или seed
+
+**Database:** SQLite (WAL) → `/opt/websites/saas.mix-id.ru/backend-hono/data/db/prod.db`
+
+---
+
+## Структура
+
+```
+saas-sellers/
+├── frontend-astro/      # Astro 5.x + Svelte 5 (SSR)
+├── backend-hono/        # Hono 4.x REST API
+├── data/                # БД, медиа, логи
+│   ├── db/
+│   ├── media/
+│   └── logs/
+├── docs/                # Документация
+└── prisma/              # Схема БД
+```
+
+---
+
+## Tech Stack
+
+- **Frontend:** Astro 5.x, Svelte 5, TypeScript
+- **Backend:** Hono 4.x, Prisma 6.x, SQLite/PostgreSQL
+- **Auth:** JWT (jose), bcrypt
+- **DevOps:** PM2, Nginx, SSH-MCP, GitHub MCP
+
+---
+
+## Deploy
+
+```bash
+# На сервере (через SSH MCP)
+cd /opt/websites/saas.mix-id.ru && git pull origin main
+cd backend-hono && npm install && npm run build
+cd ../frontend-astro && npm install && npm run build
+source ~/.nvm/nvm.sh && pm2 restart saas-sellers-backend saas-sellers-frontend
+```
+
+---
+
+## Uploads (в .gitignore)
+
+Путь: `/opt/websites/saas.mix-id.ru/data/media/`
+Бэкап: `data-media-backup-20251224.tar.gz`
+
+Директории: images, videos, documents
+
+---
+
+## Ветки GitHub
+
+| Ветка | Назначение |
+|-------|------------|
+| `main` | Рабочая ветка (единственная) |
+| `claude/*` | Временные ветки от Claude Web (НЕ удалять если не смержены) |
+| `backup-dev-before-sync` | Архивная (уникальные коммиты) |
+
+---
+
+*Версия: 1.0 | Создано: 2025-12-24*
+*Используется с: CLAUDE.local.md (Workflow v4.2)*
