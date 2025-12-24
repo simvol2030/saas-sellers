@@ -1,0 +1,118 @@
+---
+/**
+ * PostMeta Component - мета-информация статьи
+ */
+interface Props {
+  publishedAt: Date;
+  updatedAt?: Date;
+  author?: {
+    name: string;
+    avatar?: string;
+    url?: string;
+  };
+  readingTime?: string;
+}
+
+const { publishedAt, updatedAt, author, readingTime } = Astro.props;
+
+const formatDate = (date: Date) => {
+  return date.toLocaleDateString('ru-RU', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+---
+
+<div class="post-meta">
+  {author && (
+    <div class="meta-author">
+      {author.avatar && (
+        <img src={author.avatar} alt={author.name} class="author-avatar" />
+      )}
+      {author.url ? (
+        <a href={author.url} class="author-name">{author.name}</a>
+      ) : (
+        <span class="author-name">{author.name}</span>
+      )}
+    </div>
+  )}
+
+  <div class="meta-info">
+    <time datetime={publishedAt.toISOString()} class="meta-date">
+      {formatDate(publishedAt)}
+    </time>
+
+    {updatedAt && updatedAt > publishedAt && (
+      <span class="meta-updated">
+        (обновлено {formatDate(updatedAt)})
+      </span>
+    )}
+
+    {readingTime && (
+      <span class="meta-reading-time">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        {readingTime}
+      </span>
+    )}
+  </div>
+</div>
+
+<style>
+  .post-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+  }
+
+  .meta-author {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .author-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .author-name {
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  a.author-name:hover {
+    color: var(--color-primary);
+  }
+
+  .meta-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+  }
+
+  .meta-updated {
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+  }
+
+  .meta-reading-time {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .meta-reading-time svg {
+    opacity: 0.7;
+  }
+</style>

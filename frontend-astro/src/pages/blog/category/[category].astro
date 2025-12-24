@@ -1,0 +1,105 @@
+---
+/**
+ * Category Page - статьи по категории
+ */
+export const prerender = true;
+
+import Base from '../../../layouts/Base.astro';
+import PostList from '../../../components/PostList.astro';
+import { getMdPosts, getMdCategories } from '../../../lib/content';
+
+export async function getStaticPaths() {
+  const categories = await getMdCategories();
+
+  return categories.map((category) => ({
+    params: { category },
+    props: { category },
+  }));
+}
+
+const { category } = Astro.props;
+const posts = await getMdPosts({ category });
+---
+
+<Base
+  title={`Категория: ${category}`}
+  description={`Статьи в категории ${category}`}
+>
+  <div class="category-page">
+    <header class="category-header">
+      <div class="container">
+        <nav class="breadcrumb">
+          <a href="/">Главная</a>
+          <span>/</span>
+          <a href="/blog">Блог</a>
+          <span>/</span>
+          <span>Категория</span>
+        </nav>
+        <h1 class="page-title">
+          <span class="label">Категория:</span>
+          <span class="category-name">{category}</span>
+        </h1>
+        <p class="page-description">
+          {posts.length} {posts.length === 1 ? 'статья' : posts.length < 5 ? 'статьи' : 'статей'}
+        </p>
+      </div>
+    </header>
+
+    <div class="category-content container">
+      <PostList posts={posts} />
+    </div>
+  </div>
+</Base>
+
+<style>
+  .category-page {
+    min-height: 100vh;
+  }
+
+  .category-header {
+    padding: var(--space-8) 0 var(--space-12);
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .breadcrumb a {
+    color: var(--color-text-muted);
+  }
+
+  .breadcrumb a:hover {
+    color: var(--color-primary);
+  }
+
+  .page-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: var(--space-3);
+  }
+
+  .label {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  .category-name {
+    text-transform: capitalize;
+  }
+
+  .page-description {
+    font-size: 1.125rem;
+    color: var(--color-text-muted);
+  }
+
+  .category-content {
+    padding: var(--space-8) var(--space-4);
+  }
+</style>

@@ -1,4 +1,4 @@
-// Prisma Schema - используется всеми backend'ами
+// Prisma Schema - Landing Builder + Admin Panel
 // Для переключения на PostgreSQL измените provider и DATABASE_URL
 
 datasource db {
@@ -11,12 +11,151 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ==========================================
+// USER & AUTH
+// ==========================================
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
+  password  String   // bcrypt hash
   name      String?
+  role      String   @default("editor") // admin, editor, viewer
+
+  // Relations
+  pages     Page[]
+  media     Media[]
+  sessions  Session[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("users")
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
+
+// ==========================================
+// PAGES (Landing Builder)
+// ==========================================
+
+model Page {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  title       String
+  description String?
+
+  // Sections as JSON string
+  sections    String   @default("[]") // JSON array of section objects
+
+  // Layout configuration
+  headerConfig String? // JSON object
+  footerConfig String? // JSON object
+  hideHeader   Boolean @default(false)
+  hideFooter   Boolean @default(false)
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  ogImage         String?
+  canonicalUrl    String?
+  noindex         Boolean @default(false)
+
+  // Publishing
+  status      String   @default("draft") // draft, published
+  publishedAt DateTime?
+
+  // Build options
+  prerender   Boolean  @default(true) // SSG by default
+
+  // Relations
+  authorId    Int
+  author      User     @relation(fields: [authorId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([status])
+  @@index([authorId])
+  @@map("pages")
+}
+
+// ==========================================
+// MEDIA
+// ==========================================
+
+model Media {
+  id        Int      @id @default(autoincrement())
+  filename  String   // stored filename
+  originalName String // original upload name
+  path      String   // relative path: /images/file.jpg
+  url       String   // full URL: /api/media/images/file.jpg
+  type      String   // image, video, document
+  mimeType  String
+  size      Int      // bytes
+
+  // Metadata
+  alt       String?
+  caption   String?
+  width     Int?     // for images
+  height    Int?     // for images
+  duration  Int?     // for videos (seconds)
+
+  // Relations
+  uploadedById Int?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([uploadedById])
+  @@map("media")
+}
+
+// ==========================================
+// SITE SETTINGS
+// ==========================================
+
+model SiteSetting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String // JSON value
+
+  // Grouping for UI
+  group String @default("general") // general, theme, header, footer, seo
+
+  updatedAt DateTime @updatedAt
+
+  @@index([group])
+  @@map("site_settings")
+}
+
+// ==========================================
+// THEME CUSTOMIZATION
+// ==========================================
+
+model ThemeOverride {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique // e.g., "colors.light.primary"
+  value     String   // CSS value
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("theme_overrides")
 }

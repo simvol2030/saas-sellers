@@ -1,0 +1,112 @@
+---
+/**
+ * SEO Component - мета-теги для поисковой оптимизации
+ * Включает: Open Graph, Twitter Cards, Canonical URL
+ */
+interface Props {
+  title: string;
+  description: string;
+  image?: string;
+  canonicalUrl?: string;
+  noindex?: boolean;
+  type?: 'website' | 'article';
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  author?: string;
+  section?: string;
+  tags?: string[];
+}
+
+const {
+  title,
+  description,
+  image = '/og-default.jpg',
+  canonicalUrl,
+  noindex = false,
+  type = 'website',
+  publishedTime,
+  modifiedTime,
+  author,
+  section,
+  tags = [],
+} = Astro.props;
+
+const siteUrl = import.meta.env.SITE || Astro.url.origin;
+const currentUrl = canonicalUrl || Astro.url.href;
+const imageUrl = image.startsWith('http') ? image : `${siteUrl}${image}`;
+const siteName = 'Content Platform';
+---
+
+<!-- Primary Meta Tags -->
+<title>{title}</title>
+<meta name="title" content={title} />
+<meta name="description" content={description} />
+
+<!-- Robots -->
+{noindex && <meta name="robots" content="noindex, nofollow" />}
+
+<!-- Canonical URL -->
+<link rel="canonical" href={currentUrl} />
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content={type} />
+<meta property="og:url" content={currentUrl} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={imageUrl} />
+<meta property="og:site_name" content={siteName} />
+<meta property="og:locale" content="ru_RU" />
+
+{type === 'article' && publishedTime && (
+  <meta property="article:published_time" content={publishedTime.toISOString()} />
+)}
+{type === 'article' && modifiedTime && (
+  <meta property="article:modified_time" content={modifiedTime.toISOString()} />
+)}
+{type === 'article' && author && (
+  <meta property="article:author" content={author} />
+)}
+{type === 'article' && section && (
+  <meta property="article:section" content={section} />
+)}
+{type === 'article' && tags.map((tag) => (
+  <meta property="article:tag" content={tag} />
+))}
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:url" content={currentUrl} />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={imageUrl} />
+
+<!-- Additional SEO -->
+<meta name="author" content={author || siteName} />
+<meta name="theme-color" content="#3b82f6" />
+
+<!-- Structured Data (JSON-LD) -->
+<script type="application/ld+json" set:html={JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": type === 'article' ? 'Article' : 'WebSite',
+  "name": title,
+  "description": description,
+  "url": currentUrl,
+  "image": imageUrl,
+  ...(type === 'article' && {
+    "headline": title,
+    "datePublished": publishedTime?.toISOString(),
+    "dateModified": modifiedTime?.toISOString() || publishedTime?.toISOString(),
+    "author": {
+      "@type": "Person",
+      "name": author || siteName
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": siteName,
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${siteUrl}/logo.png`
+      }
+    }
+  })
+})} />

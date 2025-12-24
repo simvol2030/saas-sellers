@@ -5,9 +5,14 @@ import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import { logger } from 'hono/logger';
 import { rateLimiter } from 'hono-rate-limiter';
-import users from './routes/users';
-import { errorHandler } from './middleware/errorHandler';
-import { prisma } from './lib/db';
+import media from './routes/media.js';
+import auth from './routes/auth.js';
+import adminPages from './routes/pages.js';
+import publicPages from './routes/public-pages.js';
+import settings from './routes/settings.js';
+import theme from './routes/theme.js';
+import { errorHandler } from './middleware/errorHandler.js';
+import { prisma } from './lib/db.js';
 
 dotenv.config();
 
@@ -27,7 +32,7 @@ app.use('*', cors({
 // Rate limiting
 app.use('/api/*', rateLimiter({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 100, // 100 requests per window
+  limit: 1000, // 100 requests per window
   standardHeaders: 'draft-6',
   keyGenerator: (c) => c.req.header('x-forwarded-for') ?? 'unknown'
 }));
@@ -61,26 +66,31 @@ app.get('/health', async (c) => {
 });
 
 // Routes
-app.route('/api/users', users);
+app.route('/api/auth', auth);
+app.route('/api/admin/pages', adminPages);
+app.route('/api/pages', publicPages);
+app.route('/api/media', media);
+app.route('/api/admin/settings', settings);
+app.route('/api/admin/theme', theme);
 
-// Error handling
+// Error handler (must be last)
 app.onError(errorHandler);
 
+// Start server
+const server = serve({
+  fetch: app.fetch,
+  port: PORT
+});
+
+console.log(`Hono server running on http://localhost:${PORT}`);
+console.log(`Health check: http://localhost:${PORT}/health`);
+
 // Graceful shutdown
-const cleanup = async () => {
-  console.log('Shutting down gracefully...');
+const shutdown = async () => {
+  console.log('\nShutting down gracefully...');
   await prisma.$disconnect();
   process.exit(0);
 };
 
-process.on('SIGINT', cleanup);
-process.on('SIGTERM', cleanup);
-
-// Start server
-serve({
-  fetch: app.fetch,
-  port: PORT
-}, (info) => {
-  console.log(`Hono server running on http://localhost:${info.port}`);
-  console.log(`Health check: http://localhost:${info.port}/health`);
-});
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

@@ -1,0 +1,344 @@
+---
+/**
+ * VideoLocal Section - локальное видео
+ *
+ * Features:
+ * - Autoplay on scroll (IntersectionObserver)
+ * - Muted по умолчанию (для autoplay)
+ * - Loop для бесшовного воспроизведения
+ * - Poster image
+ * - Опциональные controls
+ * - Lazy loading
+ */
+
+import type { VideoLocalSection } from '../../lib/parser';
+
+interface Props extends Omit<VideoLocalSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  src,
+  poster,
+  autoplay = true,
+  muted = true,
+  loop = true,
+  controls = false,
+} = Astro.props;
+
+const videoId = id || `video-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<section
+  id={id}
+  class:list={['video-local section', className]}
+>
+  <div class="container">
+    {title && (
+      <h2 class="video-local-title">{title}</h2>
+    )}
+
+    <div
+      class="video-local-wrapper"
+      data-video-container={videoId}
+      data-autoplay={autoplay}
+    >
+      <video
+        id={videoId}
+        class="video-local-player"
+        poster={poster}
+        muted={muted}
+        loop={loop}
+        playsinline
+        preload="metadata"
+      >
+        <source src={src} type={src.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
+        Ваш браузер не поддерживает видео.
+      </video>
+
+      {/* Custom controls overlay */}
+      <div class="video-local-overlay">
+        <button
+          type="button"
+          class="video-local-play-btn"
+          aria-label="Воспроизвести/Пауза"
+        >
+          <svg class="play-icon" width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <svg class="pause-icon" width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Sound toggle button */}
+      <button
+        type="button"
+        class="video-local-sound-btn"
+        aria-label="Включить/выключить звук"
+      >
+        <svg class="sound-on" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        </svg>
+        <svg class="sound-off" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+          <path d="m23 9-6 6M17 9l6 6"/>
+        </svg>
+      </button>
+
+      {/* Native controls (optional) */}
+      {controls && (
+        <div class="video-local-native-controls">
+          <video
+            class="video-local-player-with-controls"
+            src={src}
+            poster={poster}
+            muted={muted}
+            loop={loop}
+            controls
+            playsinline
+            preload="metadata"
+          />
+        </div>
+      )}
+
+      {/* Progress bar */}
+      <div class="video-local-progress">
+        <div class="video-local-progress-bar"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .video-local-title {
+    margin: 0 0 var(--spacing-8);
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    text-align: center;
+    color: var(--color-text);
+  }
+
+  .video-local-wrapper {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-2xl);
+    background: #000;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .video-local-player {
+    width: 100%;
+    display: block;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+
+  /* Overlay with play button */
+  .video-local-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+    cursor: pointer;
+  }
+
+  .video-local-wrapper:hover .video-local-overlay,
+  .video-local-wrapper.paused .video-local-overlay {
+    opacity: 1;
+  }
+
+  .video-local-play-btn {
+    padding: var(--spacing-4);
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: var(--radius-full);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: transform var(--transition-fast), background var(--transition-fast);
+  }
+
+  .video-local-play-btn:hover {
+    transform: scale(1.1);
+    background: white;
+  }
+
+  .video-local-play-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 4px;
+  }
+
+  .video-local-play-btn .pause-icon {
+    display: none;
+  }
+
+  .video-local-wrapper.playing .video-local-play-btn .play-icon {
+    display: none;
+  }
+
+  .video-local-wrapper.playing .video-local-play-btn .pause-icon {
+    display: block;
+  }
+
+  /* Sound button */
+  .video-local-sound-btn {
+    position: absolute;
+    bottom: var(--spacing-4);
+    right: var(--spacing-4);
+    padding: var(--spacing-2);
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    z-index: 10;
+  }
+
+  .video-local-sound-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+  }
+
+  .video-local-sound-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .video-local-sound-btn .sound-off {
+    display: none;
+  }
+
+  .video-local-wrapper.muted .video-local-sound-btn .sound-on {
+    display: none;
+  }
+
+  .video-local-wrapper.muted .video-local-sound-btn .sound-off {
+    display: block;
+  }
+
+  /* Progress bar */
+  .video-local-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  .video-local-progress-bar {
+    height: 100%;
+    background: var(--color-primary);
+    width: 0;
+    transition: width 0.1s linear;
+  }
+
+  /* Hide when using native controls */
+  .video-local-native-controls ~ .video-local-overlay,
+  .video-local-native-controls ~ .video-local-sound-btn,
+  .video-local-native-controls ~ .video-local-progress {
+    display: none;
+  }
+
+  .video-local-native-controls {
+    position: absolute;
+    inset: 0;
+  }
+
+  .video-local-player-with-controls {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const videoContainers = document.querySelectorAll('[data-video-container]');
+
+    videoContainers.forEach((container) => {
+      const video = container.querySelector('.video-local-player');
+      const overlay = container.querySelector('.video-local-overlay');
+      const playBtn = container.querySelector('.video-local-play-btn');
+      const soundBtn = container.querySelector('.video-local-sound-btn');
+      const progressBar = container.querySelector('.video-local-progress-bar');
+      const shouldAutoplay = container.dataset.autoplay === 'true';
+
+      if (!video) return;
+
+      // Initial state
+      if (video.muted) {
+        container.classList.add('muted');
+      }
+
+      // Toggle play/pause
+      function togglePlay() {
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
+      }
+
+      // Toggle sound
+      function toggleSound() {
+        video.muted = !video.muted;
+        container.classList.toggle('muted', video.muted);
+      }
+
+      // Update state
+      function updateState() {
+        container.classList.toggle('playing', !video.paused);
+        container.classList.toggle('paused', video.paused);
+      }
+
+      // Update progress
+      function updateProgress() {
+        const progress = (video.currentTime / video.duration) * 100;
+        progressBar.style.width = `${progress}%`;
+      }
+
+      // Event listeners
+      if (overlay) overlay.addEventListener('click', togglePlay);
+      if (playBtn) playBtn.addEventListener('click', togglePlay);
+      if (soundBtn) soundBtn.addEventListener('click', toggleSound);
+
+      video.addEventListener('play', updateState);
+      video.addEventListener('pause', updateState);
+      video.addEventListener('timeupdate', updateProgress);
+
+      // Autoplay on scroll with IntersectionObserver
+      if (shouldAutoplay) {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                video.play().catch(() => {
+                  // Autoplay failed, show play button
+                  container.classList.add('paused');
+                });
+              } else {
+                video.pause();
+              }
+            });
+          },
+          {
+            threshold: 0.5, // 50% visible
+          }
+        );
+
+        observer.observe(container);
+      }
+
+      // Initialize state
+      updateState();
+    });
+  });
+</script>

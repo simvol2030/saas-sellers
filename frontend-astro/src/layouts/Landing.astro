@@ -1,0 +1,217 @@
+---
+/**
+ * Landing Layout - шаблон для лендингов
+ *
+ * Отвечает за:
+ * - Динамический рендеринг секций
+ * - Конфигурируемые Header и Footer
+ * - SEO для лендингов
+ * - Полноэкранный контент (без контейнера)
+ */
+import Base from './Base.astro';
+import type { LandingPageData, Section } from '../lib/parser';
+import type { HeaderConfig } from '../components/Header.astro';
+import type { FooterConfig } from '../components/Footer.astro';
+
+// Phase 2 section components
+import Hero from '../components/sections/Hero.astro';
+import HeroMin from '../components/sections/HeroMin.astro';
+import TextBlock from '../components/sections/TextBlock.astro';
+import Snippet from '../components/sections/Snippet.astro';
+import CTA from '../components/sections/CTA.astro';
+
+// Phase 3 media section components
+import PhotoGallery from '../components/sections/PhotoGallery.astro';
+import PhotoSlider from '../components/sections/PhotoSlider.astro';
+import VideoYouTube from '../components/sections/VideoYouTube.astro';
+import VideoLocal from '../components/sections/VideoLocal.astro';
+import MediaMix from '../components/sections/MediaMix.astro';
+
+// Phase 4 conversion section components
+import FAQ from '../components/sections/FAQ.astro';
+import ContactForm from '../components/sections/ContactForm.astro';
+import Pricing from '../components/sections/Pricing.astro';
+import CompareTable from '../components/sections/CompareTable.astro';
+import Testimonials from '../components/sections/Testimonials.astro';
+
+// Phase 5 content section components
+import Features from '../components/sections/Features.astro';
+import Timeline from '../components/sections/Timeline.astro';
+import Stats from '../components/sections/Stats.astro';
+import Team from '../components/sections/Team.astro';
+import Partners from '../components/sections/Partners.astro';
+
+// Phase 6 social-style section components
+import InstagramFeed from '../components/sections/InstagramFeed.astro';
+import FacebookPost from '../components/sections/FacebookPost.astro';
+import Longread from '../components/sections/Longread.astro';
+
+interface Props {
+  data: LandingPageData;
+  headerConfig?: HeaderConfig;
+  footerConfig?: FooterConfig;
+}
+
+const { data, headerConfig, footerConfig } = Astro.props;
+
+const {
+  title,
+  description,
+  image,
+  canonicalUrl,
+  noindex,
+  hideHeader,
+  hideFooter,
+  sections,
+} = data;
+
+// Merge header/footer configs from props and data
+const finalHeaderConfig = { ...data.headerConfig, ...headerConfig } as HeaderConfig | undefined;
+const finalFooterConfig = { ...data.footerConfig, ...footerConfig } as FooterConfig | undefined;
+
+// Filter visible sections
+const visibleSections = sections.filter(section => !section.hidden);
+
+// Map of section types to components
+const sectionComponents: Record<string, any> = {
+  // Phase 2
+  hero: Hero,
+  heroMin: HeroMin,
+  textBlock: TextBlock,
+  snippet: Snippet,
+  cta: CTA,
+  // Phase 3
+  photoGallery: PhotoGallery,
+  photoSlider: PhotoSlider,
+  videoYouTube: VideoYouTube,
+  videoLocal: VideoLocal,
+  mediaMix: MediaMix,
+  // Phase 4
+  faq: FAQ,
+  contactForm: ContactForm,
+  pricing: Pricing,
+  compareTable: CompareTable,
+  testimonials: Testimonials,
+  // Phase 5
+  features: Features,
+  timeline: Timeline,
+  stats: Stats,
+  team: Team,
+  partners: Partners,
+  // Phase 6
+  instagramFeed: InstagramFeed,
+  facebookPost: FacebookPost,
+  longread: Longread,
+};
+---
+
+<Base
+  title={title}
+  description={description}
+  image={image}
+  canonicalUrl={canonicalUrl}
+  noindex={noindex}
+  hideHeader={hideHeader}
+  hideFooter={hideFooter}
+  fullWidth={true}
+>
+  <div class="landing-page">
+    {visibleSections.map((section, index) => {
+      const sectionId = section.id || `section-${index}`;
+      const Component = sectionComponents[section.type];
+
+      // If component exists, render it
+      if (Component) {
+        const { type, ...props } = section;
+        return (
+          <Component id={sectionId} {...props} />
+        );
+      }
+
+      // Fallback: render placeholder for unimplemented sections
+      return (
+        <section
+          id={sectionId}
+          class:list={[
+            'landing-section',
+            `section-${section.type}`,
+            section.className,
+          ]}
+          data-section-type={section.type}
+          data-section-index={index}
+        >
+          <div class="section-placeholder">
+            <div class="container">
+              <span class="section-type-badge">{section.type}</span>
+              <p class="section-placeholder-text">
+                Компонент секции: <strong>{section.type}</strong>
+              </p>
+              {'title' in section && section.title && (
+                <h2 class="section-placeholder-title">{section.title}</h2>
+              )}
+              <p class="section-placeholder-hint">
+                Этот компонент будет реализован в следующих фазах
+              </p>
+            </div>
+          </div>
+        </section>
+      );
+    })}
+  </div>
+</Base>
+
+<style>
+  .landing-page {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .landing-section {
+    width: 100%;
+  }
+
+  /* Placeholder styles for unimplemented sections */
+  .section-placeholder {
+    padding: var(--spacing-section-padding-y-mobile) 0;
+    background: var(--color-background-secondary);
+    border-bottom: 1px dashed var(--color-border);
+    text-align: center;
+  }
+
+  @media (min-width: 768px) {
+    .section-placeholder {
+      padding: var(--spacing-section-padding-y) 0;
+    }
+  }
+
+  .section-type-badge {
+    display: inline-block;
+    padding: var(--spacing-1) var(--spacing-3);
+    font-size: var(--font-font-size-xs);
+    font-weight: var(--font-font-weight-medium);
+    text-transform: uppercase;
+    letter-spacing: var(--font-letter-spacing-wide);
+    color: var(--color-primary);
+    background: var(--color-primary-light);
+    border-radius: var(--radius-full);
+    margin-bottom: var(--spacing-4);
+  }
+
+  .section-placeholder-text {
+    color: var(--color-text-secondary);
+    font-size: var(--font-font-size-sm);
+    margin-bottom: var(--spacing-2);
+  }
+
+  .section-placeholder-title {
+    color: var(--color-text);
+    font-size: var(--font-font-size-2xl);
+    margin-bottom: var(--spacing-4);
+  }
+
+  .section-placeholder-hint {
+    color: var(--color-text-muted);
+    font-size: var(--font-font-size-xs);
+    font-style: italic;
+  }
+</style>

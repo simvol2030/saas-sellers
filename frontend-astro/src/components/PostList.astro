@@ -1,0 +1,61 @@
+---
+/**
+ * PostList Component - список статей
+ */
+import type { CollectionEntry } from 'astro:content';
+import PostCard from './PostCard.astro';
+
+interface Props {
+  posts: CollectionEntry<'blog'>[];
+  title?: string;
+  showFeatured?: boolean;
+}
+
+const { posts, title, showFeatured = false } = Astro.props;
+
+// Если showFeatured, первый пост будет featured
+const featuredPost = showFeatured ? posts[0] : null;
+const regularPosts = showFeatured ? posts.slice(1) : posts;
+---
+
+<section class="post-list-section">
+  {title && <h2 class="section-title">{title}</h2>}
+
+  <div class="post-list">
+    {featuredPost && (
+      <PostCard post={featuredPost} featured={true} />
+    )}
+
+    {regularPosts.map((post) => (
+      <PostCard post={post} />
+    ))}
+  </div>
+
+  {posts.length === 0 && (
+    <p class="no-posts">Статьи не найдены</p>
+  )}
+</section>
+
+<style>
+  .post-list-section {
+    padding: var(--space-8) 0;
+  }
+
+  .section-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: var(--space-6);
+  }
+
+  .post-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--space-6);
+  }
+
+  .no-posts {
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: var(--space-12) 0;
+  }
+</style>

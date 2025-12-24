@@ -1,0 +1,170 @@
+---
+/**
+ * Features Section - преимущества (grid, иконки)
+ *
+ * Features:
+ * - Адаптивная сетка (2-4 колонки)
+ * - SVG иконки или emoji
+ * - Заголовок и описание
+ * - Hover эффекты
+ * - Опциональные ссылки
+ */
+
+import type { FeaturesSection } from '../../lib/parser';
+
+interface Props extends Omit<FeaturesSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  subtitle,
+  items,
+  columns = 3,
+} = Astro.props;
+---
+
+<section
+  id={id}
+  class:list={['features section', `columns-${columns}`, className]}
+>
+  <div class="container">
+    {(title || subtitle) && (
+      <div class="features-header">
+        {title && <h2 class="features-title">{title}</h2>}
+        {subtitle && <p class="features-subtitle">{subtitle}</p>}
+      </div>
+    )}
+
+    <div class="features-grid">
+      {items.map((item) => (
+        <div class="feature-card">
+          {item.icon && (
+            <div class="feature-icon" set:html={item.icon} />
+          )}
+          <h3 class="feature-title">{item.title}</h3>
+          <p class="feature-description">{item.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .features-header {
+    text-align: center;
+    margin-bottom: var(--spacing-12);
+  }
+
+  .features-title {
+    margin: 0 0 var(--spacing-4);
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    color: var(--color-text);
+  }
+
+  .features-subtitle {
+    margin: 0;
+    font-size: var(--font-font-size-lg);
+    color: var(--color-text-secondary);
+    max-width: 600px;
+    margin-inline: auto;
+  }
+
+  /* Grid */
+  .features-grid {
+    display: grid;
+    gap: var(--spacing-6);
+  }
+
+  .columns-2 .features-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+
+  .columns-3 .features-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+
+  .columns-4 .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 768px) {
+    .columns-2 .features-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .columns-3 .features-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .columns-4 .features-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .columns-3 .features-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .columns-4 .features-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* Card */
+  .feature-card {
+    padding: var(--spacing-6);
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    text-align: center;
+    transition: all var(--transition-normal);
+  }
+
+  .feature-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px);
+  }
+
+  /* Icon */
+  .feature-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: var(--spacing-4);
+    background: var(--color-primary-light);
+    border-radius: var(--radius-xl);
+    color: var(--color-primary);
+    font-size: 28px;
+  }
+
+  .feature-icon :global(svg) {
+    width: 32px;
+    height: 32px;
+  }
+
+  .feature-card:hover .feature-icon {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  /* Text */
+  .feature-title {
+    margin: 0 0 var(--spacing-2);
+    font-size: var(--font-font-size-lg);
+    font-weight: var(--font-font-weight-semibold);
+    color: var(--color-text);
+  }
+
+  .feature-description {
+    margin: 0;
+    font-size: var(--font-font-size-base);
+    color: var(--color-text-secondary);
+    line-height: var(--font-line-height-relaxed);
+  }
+</style>

@@ -1,0 +1,233 @@
+---
+/**
+ * Stats Section - статистика с анимацией
+ *
+ * Features:
+ * - Анимированные счётчики (count up)
+ * - Префикс и суффикс (₽, +, % и т.д.)
+ * - 3 варианта оформления: default, cards, minimal
+ * - Trigger on scroll
+ * - Адаптивная сетка
+ */
+
+import type { StatsSection } from '../../lib/parser';
+
+interface Props extends Omit<StatsSection, 'type'> {}
+
+const {
+  id,
+  className,
+  title,
+  items,
+  variant = 'default',
+} = Astro.props;
+
+const statsId = id || `stats-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<section
+  id={id}
+  class:list={['stats section', `variant-${variant}`, className]}
+>
+  <div class="container">
+    {title && (
+      <h2 class="stats-title">{title}</h2>
+    )}
+
+    <div class="stats-grid" data-stats={statsId}>
+      {items.map((item, index) => {
+        const numericValue = typeof item.value === 'number'
+          ? item.value
+          : parseFloat(String(item.value).replace(/[^\d.-]/g, '')) || 0;
+
+        return (
+          <div
+            class="stat-item"
+            data-value={numericValue}
+            data-index={index}
+          >
+            <div class="stat-value">
+              {item.prefix && <span class="stat-prefix">{item.prefix}</span>}
+              <span class="stat-number" data-target={numericValue}>0</span>
+              {item.suffix && <span class="stat-suffix">{item.suffix}</span>}
+            </div>
+            <div class="stat-label">{item.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>
+
+<style>
+  .stats-title {
+    margin: 0 0 var(--spacing-12);
+    font-size: var(--font-font-size-3xl);
+    font-weight: var(--font-font-weight-bold);
+    text-align: center;
+    color: var(--color-text);
+  }
+
+  .stats-grid {
+    display: grid;
+    gap: var(--spacing-6);
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 768px) {
+    .stats-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* Stat item */
+  .stat-item {
+    text-align: center;
+    padding: var(--spacing-6);
+  }
+
+  .stat-value {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: var(--spacing-1);
+    margin-bottom: var(--spacing-2);
+    font-size: var(--font-font-size-4xl);
+    font-weight: var(--font-font-weight-bold);
+    color: var(--color-primary);
+    line-height: 1;
+  }
+
+  .stat-prefix,
+  .stat-suffix {
+    font-size: var(--font-font-size-2xl);
+    font-weight: var(--font-font-weight-semibold);
+  }
+
+  .stat-label {
+    font-size: var(--font-font-size-base);
+    color: var(--color-text-secondary);
+  }
+
+  /* Variant: cards */
+  .variant-cards .stat-item {
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    transition: all var(--transition-normal);
+  }
+
+  .variant-cards .stat-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px);
+  }
+
+  /* Variant: minimal */
+  .variant-minimal .stat-item {
+    padding: var(--spacing-4);
+  }
+
+  .variant-minimal .stat-value {
+    font-size: var(--font-font-size-3xl);
+    color: var(--color-text);
+  }
+
+  .variant-minimal .stat-item:not(:last-child) {
+    border-right: 1px solid var(--color-border);
+  }
+
+  @media (max-width: 767px) {
+    .variant-minimal .stat-item:not(:last-child) {
+      border-right: none;
+      border-bottom: 1px solid var(--color-border);
+    }
+  }
+
+  /* Animation state */
+  .stat-item {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .stat-item.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+
+<script define:vars={{ statsId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const container = document.querySelector(`[data-stats="${statsId}"]`);
+    if (!container) return;
+
+    const items = container.querySelectorAll('.stat-item');
+    let animated = false;
+
+    function animateCounter(element, target, duration = 2000) {
+      const start = 0;
+      const startTime = performance.now();
+      const isFloat = target % 1 !== 0;
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Ease out cubic
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const current = start + (target - start) * easeOut;
+
+        element.textContent = isFloat
+          ? current.toFixed(1)
+          : Math.floor(current).toLocaleString();
+
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          element.textContent = isFloat
+            ? target.toFixed(1)
+            : target.toLocaleString();
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    function startAnimation() {
+      if (animated) return;
+      animated = true;
+
+      items.forEach((item, index) => {
+        // Stagger animation
+        setTimeout(() => {
+          item.classList.add('visible');
+
+          const numberEl = item.querySelector('.stat-number');
+          const target = parseFloat(numberEl.dataset.target) || 0;
+
+          setTimeout(() => {
+            animateCounter(numberEl, target);
+          }, 200);
+        }, index * 150);
+      });
+    }
+
+    // Trigger on scroll
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            startAnimation();
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        threshold: 0.3,
+      }
+    );
+
+    observer.observe(container);
+  });
+</script>

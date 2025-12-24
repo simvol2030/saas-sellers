@@ -1,6 +1,17 @@
 {
+  "name": "content-platform",
+  "version": "1.0.0",
+  "description": "Universal content platform with Astro and Hono",
+  "scripts": {
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "db:setup": "prisma generate && prisma migrate dev && tsx prisma/seed.ts"
+  },
   "devDependencies": {
-    "prisma": "^6.19.0"
+    "prisma": "^6.19.0",
+    "tsx": "^4.20.6"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0"

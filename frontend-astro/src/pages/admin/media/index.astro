@@ -1,0 +1,38 @@
+---
+/**
+ * Admin Media Manager
+ *
+ * Управление изображениями, видео и документами
+ */
+import Admin from '../../../layouts/Admin.astro';
+import MediaGallery from '../../../components/admin/MediaGallery.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Медиа">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <div class="page-header">
+    <p class="page-description">Управление изображениями, видео и документами</p>
+  </div>
+
+  <MediaGallery client:load />
+
+  <style>
+    .page-header {
+      margin-bottom: var(--spacing-6);
+    }
+
+    .page-description {
+      margin: 0;
+      color: var(--color-text-muted);
+    }
+  </style>
+</Admin>

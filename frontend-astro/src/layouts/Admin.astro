@@ -1,0 +1,580 @@
+---
+/**
+ * Admin Layout - макет для админ-панели
+ *
+ * Features:
+ * - Sidebar навигация
+ * - Header с user info
+ * - Responsive (сворачиваемый sidebar на мобильных)
+ * - Тёмная/светлая тема
+ * - SSR режим для защиты
+ */
+
+// Import global styles
+import '../styles/theme.css';
+import '../styles/global.css';
+
+// Force SSR for admin pages
+export const prerender = false;
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+
+// Navigation items
+const navItems = [
+  { href: '/admin', label: 'Dashboard', icon: 'dashboard' },
+  { href: '/admin/pages', label: 'Страницы', icon: 'pages' },
+  { href: '/admin/media', label: 'Медиа', icon: 'media' },
+  { href: '/admin/theme', label: 'Дизайн', icon: 'theme' },
+  { href: '/admin/settings', label: 'Настройки', icon: 'settings' },
+];
+
+const currentPath = Astro.url.pathname;
+---
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{title} | Admin</title>
+  {description && <meta name="description" content={description} />}
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <!-- Theme initialization script (before render) -->
+  <script is:inline>
+    (function() {
+      const theme = localStorage.getItem('theme');
+      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+</head>
+<body class="admin-body">
+  <div class="admin-layout" id="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <div class="sidebar-header">
+        <a href="/admin" class="sidebar-logo">
+          <span class="logo-icon">🏗️</span>
+          <span class="logo-text">Landing Builder</span>
+        </a>
+        <button class="sidebar-close" id="sidebar-close" aria-label="Закрыть меню">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        {navItems.map(item => (
+          <a
+            href={item.href}
+            class:list={[
+              'nav-item',
+              { active: currentPath === item.href || (item.href !== '/admin' && currentPath.startsWith(item.href)) }
+            ]}
+          >
+            <span class="nav-icon" data-icon={item.icon}></span>
+            <span class="nav-label">{item.label}</span>
+          </a>
+        ))}
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/" class="nav-item" target="_blank">
+          <span class="nav-icon" data-icon="external"></span>
+          <span class="nav-label">Открыть сайт</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="admin-main">
+      <!-- Header -->
+      <header class="admin-header">
+        <button class="menu-toggle" id="menu-toggle" aria-label="Открыть меню">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12h18M3 6h18M3 18h18"/>
+          </svg>
+        </button>
+
+        <h1 class="header-title">{title}</h1>
+
+        <div class="header-actions">
+          <!-- Theme toggle -->
+          <button class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">
+            <svg class="icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"/>
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+            </svg>
+            <svg class="icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </button>
+
+          <!-- User menu -->
+          <div class="user-menu" id="user-menu">
+            <button class="user-button" id="user-button">
+              <span class="user-avatar">👤</span>
+              <span class="user-name" id="user-name">Admin</span>
+            </button>
+            <div class="user-dropdown" id="user-dropdown">
+              <a href="/admin/profile" class="dropdown-item">Профиль</a>
+              <button class="dropdown-item" id="logout-btn">Выйти</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <main class="admin-content">
+        <slot />
+      </main>
+    </div>
+  </div>
+
+  <!-- Overlay for mobile sidebar -->
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <style>
+    /* Reset & Base */
+    .admin-body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-font-family, 'Inter', sans-serif);
+      background: var(--color-background-secondary);
+      color: var(--color-text);
+      min-height: 100vh;
+    }
+
+    /* Layout */
+    .admin-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    .admin-sidebar {
+      width: 260px;
+      background: var(--color-background);
+      border-right: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 100;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+    }
+
+    .admin-sidebar.open {
+      transform: translateX(0);
+    }
+
+    @media (min-width: 1024px) {
+      .admin-sidebar {
+        position: sticky;
+        transform: translateX(0);
+      }
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--spacing-4) var(--spacing-5);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      text-decoration: none;
+      color: var(--color-text);
+      font-weight: var(--font-font-weight-semibold);
+      font-size: var(--font-font-size-lg);
+    }
+
+    .logo-icon {
+      font-size: 1.5rem;
+    }
+
+    .sidebar-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      color: var(--color-text-muted);
+      cursor: pointer;
+      border-radius: var(--radius-md);
+    }
+
+    .sidebar-close:hover {
+      background: var(--color-background-secondary);
+      color: var(--color-text);
+    }
+
+    @media (min-width: 1024px) {
+      .sidebar-close {
+        display: none;
+      }
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: var(--spacing-4) var(--spacing-3);
+      overflow-y: auto;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+      padding: var(--spacing-3) var(--spacing-4);
+      text-decoration: none;
+      color: var(--color-text-secondary);
+      border-radius: var(--radius-md);
+      transition: all var(--transition-fast);
+      margin-bottom: var(--spacing-1);
+    }
+
+    .nav-item:hover {
+      background: var(--color-background-secondary);
+      color: var(--color-text);
+    }
+
+    .nav-item.active {
+      background: var(--color-primary-light);
+      color: var(--color-primary);
+      font-weight: var(--font-font-weight-medium);
+    }
+
+    .nav-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-icon::before {
+      content: '';
+      display: block;
+    }
+
+    .nav-icon[data-icon="dashboard"]::before { content: '📊'; }
+    .nav-icon[data-icon="pages"]::before { content: '📄'; }
+    .nav-icon[data-icon="media"]::before { content: '🖼️'; }
+    .nav-icon[data-icon="theme"]::before { content: '🎨'; }
+    .nav-icon[data-icon="settings"]::before { content: '⚙️'; }
+    .nav-icon[data-icon="external"]::before { content: '🔗'; }
+
+    .sidebar-footer {
+      padding: var(--spacing-4) var(--spacing-3);
+      border-top: 1px solid var(--color-border);
+    }
+
+    /* Main area */
+    .admin-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    @media (min-width: 1024px) {
+      .admin-main {
+        margin-left: 0;
+      }
+    }
+
+    /* Header */
+    .admin-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-4);
+      padding: var(--spacing-4) var(--spacing-6);
+      background: var(--color-background);
+      border-bottom: 1px solid var(--color-border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .menu-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: transparent;
+      color: var(--color-text);
+      cursor: pointer;
+      border-radius: var(--radius-md);
+    }
+
+    .menu-toggle:hover {
+      background: var(--color-background-secondary);
+    }
+
+    @media (min-width: 1024px) {
+      .menu-toggle {
+        display: none;
+      }
+    }
+
+    .header-title {
+      flex: 1;
+      margin: 0;
+      font-size: var(--font-font-size-xl);
+      font-weight: var(--font-font-weight-semibold);
+      color: var(--color-text);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-3);
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: transparent;
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      border-radius: var(--radius-md);
+    }
+
+    .theme-toggle:hover {
+      background: var(--color-background-secondary);
+      color: var(--color-text);
+    }
+
+    .icon-moon { display: none; }
+    [data-theme="dark"] .icon-sun { display: none; }
+    [data-theme="dark"] .icon-moon { display: block; }
+
+    /* User menu */
+    .user-menu {
+      position: relative;
+    }
+
+    .user-button {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-2) var(--spacing-3);
+      border: 1px solid var(--color-border);
+      background: var(--color-background);
+      color: var(--color-text);
+      cursor: pointer;
+      border-radius: var(--radius-md);
+    }
+
+    .user-button:hover {
+      background: var(--color-background-secondary);
+    }
+
+    .user-avatar {
+      font-size: 1.25rem;
+    }
+
+    .user-name {
+      font-size: var(--font-font-size-sm);
+    }
+
+    @media (max-width: 640px) {
+      .user-name {
+        display: none;
+      }
+    }
+
+    .user-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: var(--spacing-2);
+      min-width: 160px;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-10px);
+      transition: all var(--transition-fast);
+      z-index: 60;
+    }
+
+    .user-dropdown.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .dropdown-item {
+      display: block;
+      width: 100%;
+      padding: var(--spacing-3) var(--spacing-4);
+      border: none;
+      background: transparent;
+      color: var(--color-text);
+      text-decoration: none;
+      text-align: left;
+      font-size: var(--font-font-size-sm);
+      cursor: pointer;
+    }
+
+    .dropdown-item:hover {
+      background: var(--color-background-secondary);
+    }
+
+    .dropdown-item:first-child {
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+
+    .dropdown-item:last-child {
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      color: var(--color-error);
+    }
+
+    /* Content */
+    .admin-content {
+      flex: 1;
+      padding: var(--spacing-6);
+    }
+
+    @media (max-width: 640px) {
+      .admin-content {
+        padding: var(--spacing-4);
+      }
+    }
+
+    /* Overlay */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 90;
+    }
+
+    .sidebar-overlay.open {
+      display: block;
+    }
+  </style>
+
+  <script>
+    // Sidebar toggle
+    const sidebar = document.getElementById('admin-sidebar');
+    const menuToggle = document.getElementById('menu-toggle');
+    const sidebarClose = document.getElementById('sidebar-close');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    function openSidebar() {
+      sidebar?.classList.add('open');
+      overlay?.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+      sidebar?.classList.remove('open');
+      overlay?.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    menuToggle?.addEventListener('click', openSidebar);
+    sidebarClose?.addEventListener('click', closeSidebar);
+    overlay?.addEventListener('click', closeSidebar);
+
+    // Theme toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    themeToggle?.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+    });
+
+    // User dropdown
+    const userButton = document.getElementById('user-button');
+    const userDropdown = document.getElementById('user-dropdown');
+
+    userButton?.addEventListener('click', () => {
+      userDropdown?.classList.toggle('open');
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      if (!userButton?.contains(e.target as Node) && !userDropdown?.contains(e.target as Node)) {
+        userDropdown?.classList.remove('open');
+      }
+    });
+
+    // Logout
+    const logoutBtn = document.getElementById('logout-btn');
+    logoutBtn?.addEventListener('click', async () => {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        try {
+          await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+        } catch (e) {
+          // Ignore logout errors
+        }
+      }
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      window.location.href = '/admin/login';
+    });
+
+    // Load user info
+    async function loadUser() {
+      const accessToken = localStorage.getItem('accessToken');
+      if (!accessToken) return;
+
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const userName = document.getElementById('user-name');
+          if (userName && data.user) {
+            userName.textContent = data.user.name || data.user.email;
+          }
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+
+    loadUser();
+  </script>
+</body>
+</html>

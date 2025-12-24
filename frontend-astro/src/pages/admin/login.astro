@@ -1,0 +1,333 @@
+---
+/**
+ * Admin Login Page
+ *
+ * Public page for admin authentication
+ */
+
+// Import global styles
+import '../../styles/theme.css';
+import '../../styles/global.css';
+
+export const prerender = false;
+---
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Вход | Admin</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <script is:inline>
+    (function() {
+      const theme = localStorage.getItem('theme');
+      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+
+      // Redirect if already logged in
+      const accessToken = localStorage.getItem('accessToken');
+      if (accessToken) {
+        window.location.href = '/admin';
+      }
+    })();
+  </script>
+</head>
+<body class="login-page">
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <span class="login-logo">🏗️</span>
+        <h1 class="login-title">Landing Builder</h1>
+        <p class="login-subtitle">Вход в админ-панель</p>
+      </div>
+
+      <form class="login-form" id="login-form">
+        <div class="form-group">
+          <label for="email" class="form-label">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-input"
+            placeholder="admin@example.com"
+            required
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">Пароль</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            class="form-input"
+            placeholder="••••••••"
+            required
+            autocomplete="current-password"
+          />
+        </div>
+
+        <div class="form-error" id="form-error" style="display: none;"></div>
+
+        <button type="submit" class="login-button" id="submit-btn">
+          <span class="button-text">Войти</span>
+          <span class="button-loader" style="display: none;">
+            <svg class="spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+              <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+            </svg>
+          </span>
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <a href="/" class="back-link">← Вернуться на сайт</a>
+      </div>
+    </div>
+
+    <!-- First user setup hint -->
+    <div class="setup-hint" id="setup-hint" style="display: none;">
+      <p>💡 <strong>Первый запуск:</strong> Создайте первого пользователя через API:</p>
+      <code>POST /api/auth/register</code>
+    </div>
+  </div>
+
+  <style>
+    .login-page {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-background-secondary);
+      font-family: var(--font-font-family, 'Inter', sans-serif);
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 400px;
+      padding: var(--spacing-4);
+    }
+
+    .login-card {
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      padding: var(--spacing-8);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: var(--spacing-8);
+    }
+
+    .login-logo {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: var(--spacing-4);
+    }
+
+    .login-title {
+      margin: 0 0 var(--spacing-2);
+      font-size: var(--font-font-size-2xl);
+      font-weight: var(--font-font-weight-bold);
+      color: var(--color-text);
+    }
+
+    .login-subtitle {
+      margin: 0;
+      color: var(--color-text-muted);
+      font-size: var(--font-font-size-sm);
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-5);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-2);
+    }
+
+    .form-label {
+      font-size: var(--font-font-size-sm);
+      font-weight: var(--font-font-weight-medium);
+      color: var(--color-text);
+    }
+
+    .form-input {
+      padding: var(--spacing-3) var(--spacing-4);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      font-size: var(--font-font-size-base);
+      color: var(--color-text);
+      background: var(--color-background);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-light);
+    }
+
+    .form-input::placeholder {
+      color: var(--color-text-muted);
+    }
+
+    .form-error {
+      padding: var(--spacing-3) var(--spacing-4);
+      background: var(--color-error-light);
+      border: 1px solid var(--color-error);
+      border-radius: var(--radius-md);
+      color: var(--color-error);
+      font-size: var(--font-font-size-sm);
+    }
+
+    .login-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-2);
+      padding: var(--spacing-3) var(--spacing-6);
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: var(--font-font-size-base);
+      font-weight: var(--font-font-weight-medium);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+
+    .login-button:hover:not(:disabled) {
+      background: var(--color-primary-hover);
+    }
+
+    .login-button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .login-footer {
+      margin-top: var(--spacing-6);
+      text-align: center;
+    }
+
+    .back-link {
+      color: var(--color-text-muted);
+      text-decoration: none;
+      font-size: var(--font-font-size-sm);
+    }
+
+    .back-link:hover {
+      color: var(--color-primary);
+    }
+
+    .setup-hint {
+      margin-top: var(--spacing-4);
+      padding: var(--spacing-4);
+      background: var(--color-info-light);
+      border: 1px solid var(--color-info);
+      border-radius: var(--radius-md);
+      font-size: var(--font-font-size-sm);
+      color: var(--color-text);
+    }
+
+    .setup-hint code {
+      display: block;
+      margin-top: var(--spacing-2);
+      padding: var(--spacing-2);
+      background: var(--color-background);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-font-family-mono);
+      font-size: var(--font-font-size-xs);
+    }
+  </style>
+
+  <script>
+    const form = document.getElementById('login-form') as HTMLFormElement;
+    const errorDiv = document.getElementById('form-error');
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+    const buttonText = submitBtn?.querySelector('.button-text');
+    const buttonLoader = submitBtn?.querySelector('.button-loader');
+
+    function showError(message: string) {
+      if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+      }
+    }
+
+    function hideError() {
+      if (errorDiv) {
+        errorDiv.style.display = 'none';
+      }
+    }
+
+    function setLoading(loading: boolean) {
+      if (submitBtn && buttonText && buttonLoader) {
+        submitBtn.disabled = loading;
+        (buttonText as HTMLElement).style.display = loading ? 'none' : 'block';
+        (buttonLoader as HTMLElement).style.display = loading ? 'block' : 'none';
+      }
+    }
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+      setLoading(true);
+
+      const formData = new FormData(form);
+      const email = formData.get('email') as string;
+      const password = formData.get('password') as string;
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Ошибка входа');
+        }
+
+        // Store tokens
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+
+        // Redirect to admin
+        window.location.href = '/admin';
+      } catch (error) {
+        showError(error instanceof Error ? error.message : 'Ошибка входа');
+      } finally {
+        setLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+---
+/**
+ * Admin Settings
+ *
+ * Общие настройки сайта, Header, Footer и SEO
+ */
+import Admin from '../../../layouts/Admin.astro';
+import SiteSettings from '../../../components/admin/SiteSettings.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Настройки">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <SiteSettings client:load />
+</Admin>
