@@ -11,6 +11,7 @@ export interface AuthUser {
   id: number;
   email: string;
   role: string;
+  isSuperadmin: boolean;  // Phase 3: superadmin flag
 }
 
 // Extend Hono context
@@ -70,6 +71,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
     id: payload.userId,
     email: payload.email,
     role: payload.role,
+    isSuperadmin: payload.isSuperadmin || false,
   });
 
   await next();
@@ -88,6 +90,7 @@ export const optionalAuthMiddleware = async (c: Context, next: Next) => {
         id: payload.userId,
         email: payload.email,
         role: payload.role,
+        isSuperadmin: payload.isSuperadmin || false,
       });
     }
   }
@@ -132,3 +135,27 @@ export const adminOnly = requireRole('admin');
  * Editor or Admin middleware
  */
 export const editorOrAdmin = requireRole('editor', 'admin');
+
+/**
+ * Superadmin-only middleware (Phase 3)
+ * Use after authMiddleware
+ */
+export const superadminOnly = async (c: Context, next: Next) => {
+  const user = c.get('user');
+
+  if (!user) {
+    return c.json({
+      error: 'Authentication required',
+      code: 'NO_USER',
+    }, 401);
+  }
+
+  if (!user.isSuperadmin) {
+    return c.json({
+      error: 'Superadmin access required',
+      code: 'SUPERADMIN_REQUIRED',
+    }, 403);
+  }
+
+  await next();
+};

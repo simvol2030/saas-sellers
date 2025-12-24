@@ -1,0 +1,26 @@
+---
+/**
+ * Admin Edit Product
+ *
+ * Edit an existing product
+ */
+import Admin from '../../../layouts/Admin.astro';
+import ProductEditor from '../../../components/admin/ProductEditor.svelte';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+const productId = parseInt(id || '0');
+---
+
+<Admin title="Редактирование товара">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <ProductEditor productId={productId} client:load />
+</Admin>

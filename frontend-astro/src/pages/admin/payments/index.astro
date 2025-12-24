@@ -1,0 +1,23 @@
+---
+/**
+ * Admin Payment Providers
+ *
+ * Manage payment methods (YooKassa, Telegram Stars, etc.)
+ */
+import Admin from '../../../layouts/Admin.astro';
+import PaymentProvidersList from '../../../components/admin/PaymentProvidersList.svelte';
+
+export const prerender = false;
+---
+
+<Admin title="Платёжные провайдеры">
+  <script is:inline>
+    (function() {
+      if (!localStorage.getItem('accessToken')) {
+        window.location.href = '/admin/login';
+      }
+    })();
+  </script>
+
+  <PaymentProvidersList client:load />
+</Admin>

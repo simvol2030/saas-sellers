@@ -1,0 +1,17 @@
+---
+/**
+ * Category Products Page
+ *
+ * Products filtered by category slug
+ */
+import Base from '../../../layouts/Base.astro';
+import CatalogPage from '../../../components/catalog/CatalogPage.svelte';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+---
+
+<Base title="Категория товаров" description="Товары в категории">
+  <CatalogPage initialCategory={slug} client:load />
+</Base>
