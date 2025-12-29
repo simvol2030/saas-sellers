@@ -252,26 +252,44 @@
   }
 
   // Format price
-  function formatPrice(prices: Record<string, number>): string {
+  function formatPrice(prices: Record<string, number> | null | undefined): string {
+    // Defensive check: ensure prices is a valid object
+    if (!prices || typeof prices !== 'object' || Array.isArray(prices)) {
+      return '—';
+    }
+
     const price = prices[defaultCurrency];
     if (typeof price === 'number') {
-      return new Intl.NumberFormat('ru-RU', {
-        style: 'currency',
-        currency: defaultCurrency,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      }).format(price);
+      try {
+        return new Intl.NumberFormat('ru-RU', {
+          style: 'currency',
+          currency: defaultCurrency,
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2,
+        }).format(price);
+      } catch {
+        return `${price} ${defaultCurrency}`;
+      }
     }
-    // Fallback to first available price
-    const firstPrice = Object.entries(prices)[0];
-    if (firstPrice) {
-      return new Intl.NumberFormat('ru-RU', {
-        style: 'currency',
-        currency: firstPrice[0],
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      }).format(firstPrice[1]);
+
+    // Fallback to first available price with valid currency code
+    const entries = Object.entries(prices);
+    for (const [currency, value] of entries) {
+      // Validate currency code (3 uppercase letters)
+      if (/^[A-Z]{3}$/.test(currency) && typeof value === 'number') {
+        try {
+          return new Intl.NumberFormat('ru-RU', {
+            style: 'currency',
+            currency: currency,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2,
+          }).format(value);
+        } catch {
+          return `${value} ${currency}`;
+        }
+      }
     }
+
     return '—';
   }
 
