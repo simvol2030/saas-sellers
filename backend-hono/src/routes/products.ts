@@ -599,7 +599,7 @@ products.get('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, as
   const formattedProducts = items.map((p: ProductItem) => ({
     ...p,
     prices: safeJsonParse<Record<string, number>>(p.prices, {}),
-    compareAtPrices: safeJsonParse<Record<string, number> | null>(p.compareAtPrices, null),
+    comparePrice: p.comparePrice ? Number(p.comparePrice) : null,
     dimensions: safeJsonParse<Record<string, unknown> | null>(p.dimensions, null),
   }));
 
