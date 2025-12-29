@@ -532,7 +532,7 @@ products.get('/public/:slug', publicSiteMiddleware, async (c) => {
     })),
   };
 
-  return c.json(response);
+  return c.json({ product: response });
 });
 
 // ============================================

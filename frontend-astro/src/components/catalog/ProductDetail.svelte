@@ -7,6 +7,7 @@
 
   import { onMount } from 'svelte';
   import CurrencySelector from './CurrencySelector.svelte';
+  import { addItem as addToCartAPI } from '../../stores/cart.svelte';
 
   interface Props {
     slug: string;
@@ -153,21 +154,16 @@
     if (!product || !inStock) return;
 
     try {
-      const cartItem = {
-        productId: product.id,
-        variantId: selectedVariant?.id,
-        quantity,
-      };
-
-      // Dispatch event for cart store
-      window.dispatchEvent(
-        new CustomEvent('cart:add', { detail: cartItem })
-      );
-
-      // Show feedback
-      alert(`${product.name} добавлен в корзину!`);
+      const success = await addToCartAPI(product.id, quantity, selectedVariant?.id);
+      
+      if (success) {
+        alert(`${product.name} добавлен в корзину!`);
+      } else {
+        alert('Не удалось добавить товар в корзину');
+      }
     } catch (e) {
       console.error('Failed to add to cart:', e);
+      alert('Ошибка при добавлении в корзину');
     }
   }
 

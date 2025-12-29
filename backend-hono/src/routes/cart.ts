@@ -221,7 +221,7 @@ cart.post('/items', publicSiteMiddleware, zValidator('json', addItemSchema), asy
     where: {
       id: productId,
       siteId,
-      status: 'published',
+      status: { in: ['active', 'published'] },
     },
   });
 
@@ -356,7 +356,7 @@ cart.put('/items/:id', publicSiteMiddleware, zValidator('json', updateItemSchema
       cartId: cartRecord.id,
     },
     include: {
-      product: true,
+      product: { include: { images: { take: 1 } } },
       variant: true,
     },
   });
@@ -594,7 +594,7 @@ cart.post('/validate', publicSiteMiddleware, async (c) => {
     include: {
       items: {
         include: {
-          product: true,
+          product: { include: { images: { take: 1 } } },
           variant: true,
         },
       },
@@ -614,7 +614,7 @@ cart.post('/validate', publicSiteMiddleware, async (c) => {
   // Validate each item
   for (const item of cartRecord.items) {
     // Check product is published
-    if (item.product.status !== 'published') {
+    if (!['active', 'published'].includes(item.product.status)) {
       errors.push(`Product "${item.product.name}" is no longer available`);
       continue;
     }
