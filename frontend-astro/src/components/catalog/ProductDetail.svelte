@@ -26,7 +26,8 @@
     name: string;
     sku?: string | null;
     prices: Record<string, number>;
-    stock: number;
+    stock?: number;
+    inStock?: boolean;  // API returns this boolean flag
     attributes?: Record<string, string>;
   }
 
@@ -66,10 +67,14 @@
   let currency = $state('RUB');
   let currencySymbol = $state('₽');
 
-  // Computed price
+  // Computed price - fallback to product.prices if variant.prices is empty
   let currentPrice = $derived.by(() => {
     if (selectedVariant) {
-      return selectedVariant.prices[currency] || Object.values(selectedVariant.prices)[0] || 0;
+      const variantPrices = selectedVariant.prices || {};
+      if (Object.keys(variantPrices).length > 0) {
+        return variantPrices[currency] || Object.values(variantPrices)[0] || 0;
+      }
+      // Fallback to product prices if variant prices is empty
     }
     if (product) {
       return product.prices[currency] || Object.values(product.prices)[0] || 0;
@@ -88,7 +93,11 @@
 
   let inStock = $derived.by(() => {
     if (selectedVariant) {
-      return selectedVariant.stock > 0;
+      // Prefer inStock boolean flag from API, fallback to stock number check
+      if (typeof selectedVariant.inStock === 'boolean') {
+        return selectedVariant.inStock;
+      }
+      return (selectedVariant.stock ?? 0) > 0;
     }
     if (product) {
       return product.stock > 0 || product.stockStatus === 'in_stock';
@@ -275,14 +284,15 @@
             <h3>Варианты:</h3>
             <div class="variant-buttons">
               {#each product.variants as variant (variant.id)}
+                {@const isOutOfStock = variant.inStock === false || (typeof variant.inStock === 'undefined' && (variant.stock ?? 0) === 0)}
                 <button
                   class:active={selectedVariant?.id === variant.id}
-                  class:disabled={variant.stock === 0}
+                  class:disabled={isOutOfStock}
                   onclick={() => selectVariant(variant)}
-                  disabled={variant.stock === 0}
+                  disabled={isOutOfStock}
                 >
                   {variant.name}
-                  {#if variant.stock === 0}
+                  {#if isOutOfStock}
                     <span class="out">(нет)</span>
                   {/if}
                 </button>
