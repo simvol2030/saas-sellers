@@ -190,19 +190,57 @@ promoAdmin.get('/', async (c) => {
   });
 });
 
-// Create schema
+// Helper to parse datetime-local format (YYYY-MM-DDTHH:mm) or ISO format
+function parseDateTime(value: string | null | undefined): Date | undefined {
+  if (!value) return undefined;
+  // If already ISO format with timezone, parse directly
+  if (value.includes('Z') || /[+-]\d{2}:\d{2}$/.test(value)) {
+    return new Date(value);
+  }
+  // datetime-local format (YYYY-MM-DDTHH:mm) - treat as local time
+  return new Date(value);
+}
+
+// Create schema - accepts both backend field names and frontend field names
 const createSchema = z.object({
   code: z.string().min(1).max(50).transform(s => s.toUpperCase()),
-  description: z.string().optional(),
-  type: z.enum(['fixed', 'percent']),
-  value: z.number().positive(),
-  currencyCode: z.string().length(3).optional(),
-  minOrderAmount: z.number().positive().optional(),
-  maxUses: z.number().int().positive().optional(),
-  maxUsesPerUser: z.number().int().positive().optional(),
-  startsAt: z.string().datetime().optional().transform(s => s ? new Date(s) : undefined),
-  expiresAt: z.string().datetime().optional().transform(s => s ? new Date(s) : undefined),
+  description: z.string().optional().nullable(),
+  // Accept both 'type' and 'discountType'
+  type: z.enum(['fixed', 'percent', 'percentage']).optional(),
+  discountType: z.enum(['fixed', 'percent', 'percentage']).optional(),
+  // Accept both 'value' and 'discountValue'
+  value: z.number().positive().optional(),
+  discountValue: z.number().positive().optional(),
+  currencyCode: z.string().length(3).optional().nullable(),
+  minOrderAmount: z.number().positive().optional().nullable(),
+  // Accept both field name variants
+  maxUses: z.number().int().positive().optional().nullable(),
+  usageLimit: z.number().int().positive().optional().nullable(),
+  maxUsesPerUser: z.number().int().positive().optional().nullable(),
+  perUserLimit: z.number().int().positive().optional().nullable(),
+  maxDiscount: z.number().positive().optional().nullable(), // Frontend sends this
+  // Accept any datetime string format
+  startsAt: z.string().optional().nullable().transform(s => parseDateTime(s)),
+  expiresAt: z.string().optional().nullable().transform(s => parseDateTime(s)),
   isActive: z.boolean().default(true),
+}).transform(data => {
+  // Normalize field names to backend format
+  const type = data.type || data.discountType || 'percent';
+  const normalizedType = type === 'percentage' ? 'percent' : type;
+
+  return {
+    code: data.code,
+    description: data.description,
+    type: normalizedType as 'fixed' | 'percent',
+    value: data.value || data.discountValue || 0,
+    currencyCode: data.currencyCode,
+    minOrderAmount: data.minOrderAmount,
+    maxUses: data.maxUses || data.usageLimit,
+    maxUsesPerUser: data.maxUsesPerUser || data.perUserLimit,
+    startsAt: data.startsAt,
+    expiresAt: data.expiresAt,
+    isActive: data.isActive,
+  };
 });
 
 // POST /api/admin/promo - Create promo code
@@ -282,14 +320,62 @@ promoAdmin.get('/:id', async (c) => {
   });
 });
 
-// Update schema
-const updateSchema = createSchema.partial();
+// Update schema - accepts partial data with same field name flexibility
+const updateSchema = z.object({
+  code: z.string().min(1).max(50).transform(s => s.toUpperCase()).optional(),
+  description: z.string().optional().nullable(),
+  type: z.enum(['fixed', 'percent', 'percentage']).optional(),
+  discountType: z.enum(['fixed', 'percent', 'percentage']).optional(),
+  value: z.number().positive().optional(),
+  discountValue: z.number().positive().optional(),
+  currencyCode: z.string().length(3).optional().nullable(),
+  minOrderAmount: z.number().positive().optional().nullable(),
+  maxUses: z.number().int().positive().optional().nullable(),
+  usageLimit: z.number().int().positive().optional().nullable(),
+  maxUsesPerUser: z.number().int().positive().optional().nullable(),
+  perUserLimit: z.number().int().positive().optional().nullable(),
+  maxDiscount: z.number().positive().optional().nullable(),
+  startsAt: z.string().optional().nullable().transform(s => parseDateTime(s)),
+  expiresAt: z.string().optional().nullable().transform(s => parseDateTime(s)),
+  isActive: z.boolean().optional(),
+}).transform(data => {
+  // Normalize field names, only including fields that were provided
+  const result: Record<string, unknown> = {};
+
+  if (data.code !== undefined) result.code = data.code;
+  if (data.description !== undefined) result.description = data.description;
+  if (data.isActive !== undefined) result.isActive = data.isActive;
+  if (data.currencyCode !== undefined) result.currencyCode = data.currencyCode;
+  if (data.minOrderAmount !== undefined) result.minOrderAmount = data.minOrderAmount;
+  if (data.startsAt !== undefined) result.startsAt = data.startsAt;
+  if (data.expiresAt !== undefined) result.expiresAt = data.expiresAt;
+
+  // Handle type aliasing
+  const type = data.type || data.discountType;
+  if (type) {
+    result.type = type === 'percentage' ? 'percent' : type;
+  }
+
+  // Handle value aliasing
+  const value = data.value ?? data.discountValue;
+  if (value !== undefined) result.value = value;
+
+  // Handle maxUses aliasing
+  const maxUses = data.maxUses ?? data.usageLimit;
+  if (maxUses !== undefined) result.maxUses = maxUses;
+
+  // Handle maxUsesPerUser aliasing
+  const maxUsesPerUser = data.maxUsesPerUser ?? data.perUserLimit;
+  if (maxUsesPerUser !== undefined) result.maxUsesPerUser = maxUsesPerUser;
+
+  return result;
+});
 
 // PUT /api/admin/promo/:id - Update promo code
 promoAdmin.put('/:id', zValidator('json', updateSchema), async (c) => {
   const siteId = c.get('siteId');
   const id = parseInt(c.req.param('id'));
-  const data = c.req.valid('json');
+  const data = c.req.valid('json') as Record<string, unknown>;
 
   const existing = await prisma.promoCode.findFirst({
     where: { id, siteId },
@@ -302,28 +388,24 @@ promoAdmin.put('/:id', zValidator('json', updateSchema), async (c) => {
   // Check code uniqueness if changing
   if (data.code && data.code !== existing.code) {
     const duplicate = await prisma.promoCode.findFirst({
-      where: { siteId, code: data.code, id: { not: id } },
+      where: { siteId, code: data.code as string, id: { not: id } },
     });
     if (duplicate) {
       return c.json({ error: 'Promo code already exists' }, 400);
     }
   }
 
+  // Filter out undefined values for the update
+  const updateData: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      updateData[key] = value;
+    }
+  }
+
   const updated = await prisma.promoCode.update({
     where: { id },
-    data: {
-      code: data.code,
-      description: data.description,
-      type: data.type,
-      value: data.value,
-      currencyCode: data.currencyCode,
-      minOrderAmount: data.minOrderAmount,
-      maxUses: data.maxUses,
-      maxUsesPerUser: data.maxUsesPerUser,
-      startsAt: data.startsAt,
-      expiresAt: data.expiresAt,
-      isActive: data.isActive,
-    },
+    data: updateData,
   });
 
   return c.json({

@@ -122,7 +122,7 @@ const productSchema = z.object({
   stock: z.number().int().default(0),
   trackStock: z.boolean().default(true),
   lowStockThreshold: z.number().int().default(5),
-  status: z.enum(['draft', 'published', 'archived']).default('draft'),
+  status: z.enum(['draft', 'active', 'published', 'archived']).default('draft'),
   featured: z.boolean().default(false),
   weight: z.number().optional().nullable(),
   dimensions: z.record(z.string(), z.number()).optional().nullable(),
@@ -163,7 +163,7 @@ products.get('/public', publicSiteMiddleware, async (c) => {
 
   const where: Record<string, unknown> = {
     siteId,
-    status: 'published',
+    status: { in: ['active', 'published'] }, // Accept both 'active' and 'published'
   };
 
   if (categorySlug) {
@@ -262,7 +262,7 @@ products.get('/public/featured', publicSiteMiddleware, async (c) => {
   const items = await prisma.product.findMany({
     where: {
       siteId,
-      status: 'published',
+      status: { in: ['active', 'published'] },
       featured: true,
     },
     select: {
@@ -318,7 +318,7 @@ products.get('/public/search', publicSiteMiddleware, async (c) => {
   const items = await prisma.product.findMany({
     where: {
       siteId,
-      status: 'published',
+      status: { in: ['active', 'published'] },
       OR: [
         { name: { contains: query } },
         { shortDesc: { contains: query } },
@@ -396,7 +396,7 @@ products.get('/public/category/:slug', publicSiteMiddleware, async (c) => {
       where: {
         siteId,
         categoryId: category.id,
-        status: 'published',
+        status: { in: ['active', 'published'] },
       },
       select: {
         id: true,
@@ -423,7 +423,7 @@ products.get('/public/category/:slug', publicSiteMiddleware, async (c) => {
       where: {
         siteId,
         categoryId: category.id,
-        status: 'published',
+        status: { in: ['active', 'published'] },
       },
     }),
   ]);
@@ -475,7 +475,7 @@ products.get('/public/:slug', publicSiteMiddleware, async (c) => {
     where: {
       siteId,
       slug,
-      status: 'published',
+      status: { in: ['active', 'published'] },
     },
     include: {
       category: { select: { id: true, name: true, slug: true } },
