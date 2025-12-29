@@ -1,0 +1,189 @@
+# Feedback v7 - E-commerce Module Production Readiness Audit
+
+**Date:** 2025-12-29
+**Tester:** Claude Code CLI (Integrator)
+**Branch:** `main`
+**Status:** Admin ready, Public catalog needs work
+
+---
+
+## Executive Summary
+
+E-commerce admin panel is **85% production-ready**. One bug found (Promo codes 400 error). Public-facing catalog exists but doesn't display products due to missing/broken API.
+
+---
+
+## Admin Panel Audit Results
+
+| Section | Status | Notes |
+|---------|--------|-------|
+| Products | OK | List, filters, create, edit, import/export |
+| Categories | OK | List with product count, status badges |
+| Currencies | OK | 3 currencies (KZT, RUB, USD), rates, default |
+| Orders | OK | Empty state, filters, search |
+| Promo Codes | BUG | UI works, create returns 400 error |
+| Payments | OK | 4 providers (YooKassa, Telegram Stars, Cash, Bank) |
+| Stats | OK | Dashboard with metrics |
+| Reviews | OK | Moderation interface |
+| Notifications | OK | Low stock alerts |
+| Import/Export | OK | JSON format works |
+
+---
+
+## Bug #8: Promo Codes Create 400 Error (Score: 6)
+
+**URL:** https://saas.mix-id.ru/admin/promo
+
+**Steps:**
+1. Click "Создать промокод"
+2. Fill form (code auto-generated, 15% discount)
+3. Click "Сохранить"
+
+**Expected:** Promo code created
+**Actual:**
+- Console: `Failed to load resource: 400`
+- UI shows: `[object Object]` (bad error handling)
+
+**Files to check:**
+- `backend-hono/src/routes/promo.ts` - POST handler validation
+- Frontend promo component - error message parsing
+
+---
+
+## Bug #9: Public Catalog Shows 0 Products (Score: 7)
+
+**URL:** https://saas.mix-id.ru/products
+
+**Symptom:**
+- Page loads correctly with UI (categories, filters, currency selector)
+- Shows: "Найдено: 0 товаров"
+- But admin has 1 Active product ("Example Product")
+
+**Root cause options:**
+1. Public API endpoint missing/broken
+2. siteId mismatch between admin and public
+3. Product visibility filter issue
+
+**API investigation:**
+- `/api/products` → 401 (requires auth)
+- `/api/public/products` → 404
+- `/api/catalog/products` → 404
+
+**Files to check:**
+- `backend-hono/src/routes/` - look for public/catalog routes
+- `frontend-astro/src/pages/products/` - check API endpoint used
+- Product table - verify siteId matches default site
+
+---
+
+## Multi-site Functionality Status
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Site selector in header | Partial | Shows "Default Site" but not clickable |
+| Site management page | Missing | /admin/sites returns 404 |
+| Site switching | Not implemented | No dropdown to switch sites |
+| Domain binding | Unknown | No UI to configure |
+| Products per site | Backend ready | siteId field exists in products |
+
+**Multi-site Roadmap for Next Phase:**
+1. Create `/admin/sites` management page
+2. Make header selector a dropdown with site list
+3. Add domain binding configuration
+4. Add site creation/editing modal
+5. Implement site-scoped data filtering
+
+---
+
+## Public Storefront Status
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Catalog page | Partial | UI works, no products displayed |
+| Product detail | Not tested | Depends on catalog fix |
+| Cart | UI exists | Button in header, functionality unknown |
+| Search | UI exists | Search box present |
+| Category filter | OK | Shows "Электроника" category |
+| Currency selector | OK | KZT, RUB, USD options |
+| Sorting | UI exists | 5 sort options available |
+| Checkout | Not tested | Needs products first |
+
+---
+
+## What's Production-Ready
+
+### Admin Panel (Ready)
+- Product management (CRUD, variants, images)
+- Category management
+- Currency management with exchange rates
+- Order management (empty state ready)
+- Payment provider configuration
+- Statistics dashboard
+- Review moderation
+- Notification system
+- Import/Export functionality
+
+### Needs Work
+- Promo codes (400 error on create)
+- Public catalog (API issue)
+- Multi-site management (UI missing)
+
+---
+
+## Priority Fix Order
+
+### Critical (blocks store launch):
+1. **Bug #9** - Public catalog API (customers can't see products)
+
+### High (limits functionality):
+2. **Bug #8** - Promo codes create error
+
+### Medium (feature incomplete):
+3. Multi-site management UI
+
+---
+
+## Next Phase Roadmap
+
+### Phase 1: Fix Critical Bugs
+- [ ] Fix public catalog API
+- [ ] Fix promo codes 400 error
+- [ ] Verify cart functionality
+
+### Phase 2: Multi-site Implementation
+- [ ] Create /admin/sites page
+- [ ] Site CRUD operations
+- [ ] Domain binding
+- [ ] Site switching in header
+
+### Phase 3: E-commerce Completion
+- [ ] Checkout flow testing
+- [ ] Payment integration testing
+- [ ] Order lifecycle
+- [ ] Email notifications
+
+---
+
+## Test Data in System
+
+**Products:**
+- iPhone 15 Pro (Draft, 599,990 KZT)
+- Example Product (Active, 1,000 RUB, category: Электроника)
+
+**Categories:**
+- Электроника (1 product)
+
+**Currencies:**
+- KZT (default)
+- RUB
+- USD
+
+---
+
+## Branch to create for fixes
+
+`claude/fix-public-catalog-promo-v7`
+
+---
+
+*Generated by CLI Integrator - Production Readiness Audit (Workflow v4.2)*

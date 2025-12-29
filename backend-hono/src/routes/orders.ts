@@ -19,6 +19,7 @@ import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin, type AuthUser } from '../middleware/auth.js';
 import { siteMiddleware, requireSite, publicSiteMiddleware } from '../middleware/site.js';
 import { getCookie } from 'hono/cookie';
+import { sendOrderNotification } from './notifications.js';
 
 // Transaction client type
 type TransactionClient = Omit<
@@ -262,6 +263,11 @@ ordersPublic.post('/checkout', publicSiteMiddleware, zValidator('json', checkout
 
     return newOrder;
   });
+
+  // Send notifications (email to customer, telegram to admin)
+  sendOrderNotification(siteId, order.id).catch(err =>
+    console.error('[NOTIFY] Order notification failed:', err)
+  );
 
   return c.json({
     order: {

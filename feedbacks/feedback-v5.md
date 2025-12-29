@@ -1,0 +1,192 @@
+# Feedback v5 - E-commerce Full QA Testing
+
+**Date:** 2025-12-29
+**Tester:** Claude Code CLI (Integrator)
+**Branch:** `main`
+**Status:** Multiple API endpoints returning 404
+
+---
+
+## Testing Summary
+
+| Section | Status | Notes |
+|---------|--------|-------|
+| Валюты | ✅ OK | Добавил KZT (Тенге) |
+| Категории | ⚠️ BUG | Данные сохраняются, UI не обновляется |
+| Товары | ⚠️ BUG | Создание работает, краткое описание не сохраняется |
+| Импорт | ✅ OK | JSON импорт работает |
+| Шаблон | ✅ OK | Скачивание работает |
+| Экспорт | ❌ BUG | 500 ошибка сервера |
+| Заказы | ❌ BUG | 404 - API не найден |
+| Промокоды | ❌ BUG | 404 - API не найден |
+| Платежи | ❌ BUG | 404 - API не найден |
+| Статистика | ✅ OK | Показывает данные |
+| Отзывы | ✅ OK | Пустое состояние работает |
+| Уведомления | ✅ OK | Показывает статус товаров |
+
+---
+
+## Bug #1: Categories UI Not Refreshing (Score: 6)
+
+**URL:** https://saas.mix-id.ru/admin/categories
+
+**Symptom:**
+- После создания категории показывает "Категория создана"
+- Но список остаётся пустым: "Категории не найдены"
+- После перезагрузки страницы - та же проблема
+- Данные ЕСТЬ в БД (проверено через sqlite3)
+
+**Database proof:**
+```sql
+SELECT * FROM product_categories;
+-- 1|Электроника|electronics|Смартфоны, ноутбуки, аксессуары|...
+```
+
+**Root cause:** Frontend не получает данные из API после создания. Возможно проблема с siteId или авторизацией при fetch.
+
+**Files to check:**
+- `frontend-astro/src/components/admin/CategoriesList.svelte`
+- `backend-hono/src/routes/categories.ts` - GET endpoint
+
+---
+
+## Bug #2: Product Short Description Not Saved (Score: 5)
+
+**URL:** https://saas.mix-id.ru/admin/products/new
+
+**Steps:**
+1. Создать новый товар
+2. Заполнить "Краткое описание" = "Смартфон Apple iPhone 15 Pro 256GB"
+3. Сохранить
+4. Открыть товар на редактирование
+
+**Expected:** Краткое описание отображается
+**Actual:** Поле пустое
+
+**Files to check:**
+- `backend-hono/src/routes/products.ts` - POST handler, проверить маппинг поля `shortDescription`
+- Prisma schema - проверить поле `excerpt` или `shortDescription`
+
+---
+
+## Bug #3: Export Products 500 Error (Score: 7)
+
+**URL:** https://saas.mix-id.ru/admin/products/import
+
+**Steps:**
+1. Перейти на страницу Импорт/Экспорт
+2. Нажать "Скачать экспорт"
+
+**Expected:** Скачивается JSON файл с товарами
+**Actual:**
+- Console: `Failed to load resource: 500`
+- UI: "Export failed"
+
+**Files to check:**
+- `backend-hono/src/routes/product-import-export.ts` - export endpoint
+- Проверить логи сервера для детальной ошибки
+
+---
+
+## Bug #4: Orders Page 404 (Score: 8)
+
+**URL:** https://saas.mix-id.ru/admin/orders
+
+**Symptom:** "Не удалось загрузить заказы"
+**Console:** `404 Not Found`
+
+**Root cause:** API endpoint `/api/orders` не зарегистрирован или не подключен.
+
+**Files to check:**
+- `backend-hono/src/routes/orders.ts` - существует ли файл?
+- `backend-hono/src/index.ts` - подключен ли роут?
+
+---
+
+## Bug #5: Promo Codes Page 404 (Score: 8)
+
+**URL:** https://saas.mix-id.ru/admin/promo
+
+**Symptom:** "❌ 404 Not Found"
+
+**Root cause:** API endpoint `/api/promo` не зарегистрирован.
+
+**Files to check:**
+- `backend-hono/src/routes/promo.ts` - существует ли файл?
+- `backend-hono/src/index.ts` - подключен ли роут?
+
+---
+
+## Bug #6: Payments Page 404 (Score: 8)
+
+**URL:** https://saas.mix-id.ru/admin/payments
+
+**Symptom:** "❌ 404 Not Found"
+
+**Root cause:** API endpoint `/api/payments` не зарегистрирован.
+
+**Files to check:**
+- `backend-hono/src/routes/payments.ts` - существует ли файл?
+- `backend-hono/src/index.ts` - подключен ли роут?
+
+---
+
+## What Works Well
+
+- ✅ **Валюты:** Создание, редактирование, установка по умолчанию
+- ✅ **Товары:** Создание с ценой и складом, редактирование
+- ✅ **Импорт:** JSON импорт через файл работает корректно
+- ✅ **Статистика:** Отображает выручку, заказы, товары
+- ✅ **Отзывы:** Модерация, фильтры, поиск
+- ✅ **Уведомления:** Мониторинг остатков товаров
+
+---
+
+## Priority Fix Order
+
+### Critical (блокируют работу магазина):
+1. **Bug #4** - Orders API (нельзя видеть заказы)
+2. **Bug #5** - Promo API (нельзя создать промокоды)
+3. **Bug #6** - Payments API (нельзя настроить оплату)
+
+### High (функционал неполный):
+4. **Bug #1** - Categories display (категории не видны)
+5. **Bug #3** - Export (нельзя сделать бэкап товаров)
+
+### Medium (мелкие баги):
+6. **Bug #2** - Short description (косметический баг)
+
+---
+
+## Recommended Investigation
+
+```bash
+# 1. Check if route files exist
+ls -la backend-hono/src/routes/ | grep -E "(orders|promo|payments)"
+
+# 2. Check index.ts for route registration
+grep -n "orders\|promo\|payments" backend-hono/src/index.ts
+
+# 3. Check server logs for 500 error details
+pm2 logs saas-sellers-backend --lines 50
+```
+
+---
+
+## Test Data Created
+
+- **Currency:** KZT (Тенге) - ₸ - default
+- **Category:** Электроника (electronics) - in DB but not visible
+- **Products:**
+  - iPhone 15 Pro (created manually)
+  - Example Product (imported via JSON)
+
+---
+
+## Branch to create
+
+`claude/fix-ecommerce-api-routes-v5`
+
+---
+
+*Generated by CLI Integrator - Full E-commerce QA (Workflow v4.2)*
