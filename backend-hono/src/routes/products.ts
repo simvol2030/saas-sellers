@@ -112,6 +112,7 @@ const productSchema = z.object({
   slug: z.string().min(1).max(300).regex(/^[a-z0-9-]+$/),
   description: z.string().optional().nullable(),
   shortDesc: z.string().optional().nullable(),
+  shortDescription: z.string().optional().nullable(), // Alias for shortDesc
   price: z.number().default(0),
   comparePrice: z.number().optional().nullable(),
   costPrice: z.number().optional().nullable(),
@@ -660,11 +661,15 @@ products.post('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, r
     }
   }
 
-  const { variants, attributes, modifiers, images, ...productData } = data;
+  const { variants, attributes, modifiers, images, shortDescription, ...productData } = data;
+
+  // Map shortDescription alias to shortDesc for database
+  const shortDesc = productData.shortDesc || shortDescription;
 
   const product = await prisma.product.create({
     data: {
       ...productData,
+      shortDesc,
       siteId,
       prices: JSON.stringify(productData.prices || {}),
       dimensions: productData.dimensions ? JSON.stringify(productData.dimensions) : null,
@@ -729,10 +734,13 @@ products.put('/:id', authMiddleware, editorOrAdmin, siteMiddleware, requireSite,
     }
   }
 
-  const { variants, attributes, modifiers, images, ...productData } = data;
+  const { variants, attributes, modifiers, images, shortDescription, ...productData } = data;
+
+  // Map shortDescription alias to shortDesc for database
+  const shortDesc = productData.shortDesc || shortDescription;
 
   // Update product base
-  const updateData: Record<string, unknown> = { ...productData };
+  const updateData: Record<string, unknown> = { ...productData, shortDesc };
   if (productData.prices) updateData.prices = JSON.stringify(productData.prices);
   if (productData.dimensions) updateData.dimensions = JSON.stringify(productData.dimensions);
 

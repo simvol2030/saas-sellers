@@ -1,15 +1,15 @@
 /**
  * Promo Codes API
  *
- * Public:
- * POST   /api/promo/validate         - Validate promo code
+ * Public Endpoints (mounted at /api/promo):
+ * POST   /validate              - Validate promo code
  *
- * Admin:
- * GET    /api/admin/promo            - List promo codes
- * POST   /api/admin/promo            - Create promo code
- * GET    /api/admin/promo/:id        - Get promo code
- * PUT    /api/admin/promo/:id        - Update promo code
- * DELETE /api/admin/promo/:id        - Delete promo code
+ * Admin Endpoints (mounted at /api/admin/promo):
+ * GET    /                      - List promo codes
+ * POST   /                      - Create promo code
+ * GET    /:id                   - Get promo code
+ * PUT    /:id                   - Update promo code
+ * DELETE /:id                   - Delete promo code
  */
 
 import { Hono } from 'hono';
@@ -19,7 +19,14 @@ import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin } from '../middleware/auth.js';
 import { siteMiddleware, requireSite, publicSiteMiddleware } from '../middleware/site.js';
 
-const promoCodes = new Hono();
+// PUBLIC ROUTER - mounted at /api/promo
+const promoPublic = new Hono();
+
+// ADMIN ROUTER - mounted at /api/admin/promo
+const promoAdmin = new Hono();
+
+// Apply auth middleware to all admin routes
+promoAdmin.use('*', authMiddleware, siteMiddleware, requireSite, editorOrAdmin);
 
 // ==========================================
 // PUBLIC ROUTES
@@ -33,7 +40,7 @@ const validateSchema = z.object({
 });
 
 // POST /api/promo/validate - Validate promo code
-promoCodes.post('/validate', publicSiteMiddleware, zValidator('json', validateSchema), async (c) => {
+promoPublic.post('/validate', publicSiteMiddleware, zValidator('json', validateSchema), async (c) => {
   const siteId = c.get('siteId');
   const { code, orderAmount, currencyCode } = c.req.valid('json');
 
@@ -91,8 +98,6 @@ promoCodes.post('/validate', publicSiteMiddleware, zValidator('json', validateSc
   if (promo.type === 'percent') {
     discount = orderAmount * (Number(promo.value) / 100);
   } else if (promo.type === 'fixed') {
-    // If promo currency differs, would need conversion
-    // For now, assume same currency or use value directly
     discount = Number(promo.value);
   }
 
@@ -116,11 +121,8 @@ promoCodes.post('/validate', publicSiteMiddleware, zValidator('json', validateSc
 // ADMIN ROUTES
 // ==========================================
 
-const adminRoutes = new Hono();
-adminRoutes.use('*', authMiddleware, siteMiddleware, requireSite, editorOrAdmin);
-
 // GET /api/admin/promo - List promo codes
-adminRoutes.get('/', async (c) => {
+promoAdmin.get('/', async (c) => {
   const siteId = c.get('siteId');
   const search = c.req.query('search') || '';
   const status = c.req.query('status'); // active, expired, disabled
@@ -183,7 +185,7 @@ adminRoutes.get('/', async (c) => {
       page,
       limit,
       total,
-      pages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit),
     },
   });
 });
@@ -204,7 +206,7 @@ const createSchema = z.object({
 });
 
 // POST /api/admin/promo - Create promo code
-adminRoutes.post('/', zValidator('json', createSchema), async (c) => {
+promoAdmin.post('/', zValidator('json', createSchema), async (c) => {
   const siteId = c.get('siteId');
   const data = c.req.valid('json');
 
@@ -247,7 +249,7 @@ adminRoutes.post('/', zValidator('json', createSchema), async (c) => {
 });
 
 // GET /api/admin/promo/:id - Get promo code
-adminRoutes.get('/:id', async (c) => {
+promoAdmin.get('/:id', async (c) => {
   const siteId = c.get('siteId');
   const id = parseInt(c.req.param('id'));
 
@@ -284,7 +286,7 @@ adminRoutes.get('/:id', async (c) => {
 const updateSchema = createSchema.partial();
 
 // PUT /api/admin/promo/:id - Update promo code
-adminRoutes.put('/:id', zValidator('json', updateSchema), async (c) => {
+promoAdmin.put('/:id', zValidator('json', updateSchema), async (c) => {
   const siteId = c.get('siteId');
   const id = parseInt(c.req.param('id'));
   const data = c.req.valid('json');
@@ -337,7 +339,7 @@ adminRoutes.put('/:id', zValidator('json', updateSchema), async (c) => {
 });
 
 // DELETE /api/admin/promo/:id - Delete promo code
-adminRoutes.delete('/:id', async (c) => {
+promoAdmin.delete('/:id', async (c) => {
   const siteId = c.get('siteId');
   const id = parseInt(c.req.param('id'));
 
@@ -356,7 +358,5 @@ adminRoutes.delete('/:id', async (c) => {
   return c.json({ message: 'Promo code deleted' });
 });
 
-// Mount admin routes
-promoCodes.route('/admin', adminRoutes);
-
-export { promoCodes };
+// Export both routers
+export { promoPublic, promoAdmin };

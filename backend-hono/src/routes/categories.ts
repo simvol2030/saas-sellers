@@ -46,7 +46,7 @@ interface CategoryWithCount {
   parentId: number | null;
   level: number;
   position: number;
-  _count: { products: number };
+  _count: { products: number; children?: number };
 }
 
 // Helper to calculate level based on parentId
@@ -150,7 +150,7 @@ categories.get('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, 
   const allCategories = await prisma.productCategory.findMany({
     where: { siteId },
     include: {
-      _count: { select: { products: true } },
+      _count: { select: { products: true, children: true } },
     },
     orderBy: [
       { level: 'asc' },
@@ -159,7 +159,7 @@ categories.get('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, 
     ],
   });
 
-  // Return flat list
+  // Return flat list only
   if (flat === 'true') {
     return c.json(allCategories);
   }
@@ -182,7 +182,11 @@ categories.get('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, 
     }
   });
 
-  return c.json(roots);
+  // Return both flat categories and tree (frontend expects { categories, tree })
+  return c.json({
+    categories: allCategories,
+    tree: roots,
+  });
 });
 
 // GET /api/admin/categories/:id - Get single category

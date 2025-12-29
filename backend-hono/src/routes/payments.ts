@@ -1,17 +1,17 @@
 /**
  * Payments API
  *
- * Endpoints:
- * GET    /api/payments/methods          - Get available payment methods
- * POST   /api/payments/create           - Create payment for order
- * GET    /api/payments/:id/status       - Get payment status
- * POST   /api/payments/refund           - Request refund
+ * Public Endpoints (mounted at /api/payments):
+ * GET    /methods               - Get available payment methods
+ * POST   /create                - Create payment for order
+ * GET    /:id/status            - Get payment status
+ * POST   /refund                - Request refund (requires auth)
  *
- * Admin:
- * GET    /api/admin/payments/providers  - List payment providers
- * POST   /api/admin/payments/providers  - Add/update provider
- * PUT    /api/admin/payments/providers/:type - Update provider config
- * DELETE /api/admin/payments/providers/:type - Disable provider
+ * Admin Endpoints (mounted at /api/admin/payments):
+ * GET    /providers             - List payment providers
+ * POST   /providers             - Add/update provider
+ * PUT    /providers/:type       - Update provider config
+ * DELETE /providers/:type       - Disable provider
  */
 
 import { Hono } from 'hono';
@@ -27,14 +27,21 @@ import {
   type PaymentConfig,
 } from '../lib/payments/index.js';
 
-const payments = new Hono();
+// PUBLIC ROUTER - mounted at /api/payments
+const paymentsPublic = new Hono();
+
+// ADMIN ROUTER - mounted at /api/admin/payments
+const paymentsAdmin = new Hono();
+
+// Apply auth middleware to all admin routes
+paymentsAdmin.use('*', authMiddleware, siteMiddleware, requireSite, editorOrAdmin);
 
 // ==========================================
 // PUBLIC ROUTES
 // ==========================================
 
 // GET /api/payments/methods - Get available payment methods for site
-payments.get('/methods', publicSiteMiddleware, async (c) => {
+paymentsPublic.get('/methods', publicSiteMiddleware, async (c) => {
   const siteId = c.get('siteId');
 
   const providers = await prisma.paymentProvider.findMany({
@@ -76,7 +83,7 @@ const createPaymentSchema = z.object({
 });
 
 // POST /api/payments/create - Create payment for order
-payments.post('/create', publicSiteMiddleware, zValidator('json', createPaymentSchema), async (c) => {
+paymentsPublic.post('/create', publicSiteMiddleware, zValidator('json', createPaymentSchema), async (c) => {
   const siteId = c.get('siteId');
   const { orderId, paymentMethod, returnUrl } = c.req.valid('json');
 
@@ -180,7 +187,7 @@ payments.post('/create', publicSiteMiddleware, zValidator('json', createPaymentS
 });
 
 // GET /api/payments/:id/status - Get payment status
-payments.get('/:id/status', publicSiteMiddleware, async (c) => {
+paymentsPublic.get('/:id/status', publicSiteMiddleware, async (c) => {
   const siteId = c.get('siteId');
   const paymentId = c.req.param('id');
 
@@ -253,7 +260,7 @@ const refundSchema = z.object({
 });
 
 // POST /api/payments/refund - Request refund (requires auth)
-payments.post('/refund', authMiddleware, siteMiddleware, requireSite, zValidator('json', refundSchema), async (c) => {
+paymentsPublic.post('/refund', authMiddleware, siteMiddleware, requireSite, zValidator('json', refundSchema), async (c) => {
   const siteId = c.get('siteId');
   const { orderId, amount, reason } = c.req.valid('json');
 
@@ -340,11 +347,8 @@ payments.post('/refund', authMiddleware, siteMiddleware, requireSite, zValidator
 // ADMIN ROUTES
 // ==========================================
 
-const adminRoutes = new Hono();
-adminRoutes.use('*', authMiddleware, siteMiddleware, requireSite, editorOrAdmin);
-
 // GET /api/admin/payments/providers - List payment providers
-adminRoutes.get('/providers', async (c) => {
+paymentsAdmin.get('/providers', async (c) => {
   const siteId = c.get('siteId');
 
   const providers = await prisma.paymentProvider.findMany({
@@ -419,7 +423,7 @@ const providerSchema = z.object({
 });
 
 // POST /api/admin/payments/providers - Add/update provider
-adminRoutes.post('/providers', zValidator('json', providerSchema), async (c) => {
+paymentsAdmin.post('/providers', zValidator('json', providerSchema), async (c) => {
   const siteId = c.get('siteId');
   const data = c.req.valid('json');
 
@@ -494,7 +498,7 @@ adminRoutes.post('/providers', zValidator('json', providerSchema), async (c) => 
 });
 
 // PUT /api/admin/payments/providers/:type - Update provider
-adminRoutes.put('/providers/:type', zValidator('json', providerSchema.partial()), async (c) => {
+paymentsAdmin.put('/providers/:type', zValidator('json', providerSchema.partial()), async (c) => {
   const siteId = c.get('siteId');
   const type = c.req.param('type');
   const data = c.req.valid('json');
@@ -543,7 +547,7 @@ adminRoutes.put('/providers/:type', zValidator('json', providerSchema.partial())
 });
 
 // DELETE /api/admin/payments/providers/:type - Disable provider
-adminRoutes.delete('/providers/:type', async (c) => {
+paymentsAdmin.delete('/providers/:type', async (c) => {
   const siteId = c.get('siteId');
   const type = c.req.param('type');
 
@@ -564,7 +568,5 @@ adminRoutes.delete('/providers/:type', async (c) => {
   return c.json({ message: 'Provider disabled' });
 });
 
-// Mount admin routes
-payments.route('/admin', adminRoutes);
-
-export { payments };
+// Export both routers
+export { paymentsPublic, paymentsAdmin };
