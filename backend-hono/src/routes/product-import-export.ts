@@ -23,6 +23,16 @@ type TransactionClient = Omit<
 const productImportExport = new Hono();
 productImportExport.use('*', authMiddleware, siteMiddleware, requireSite, editorOrAdmin);
 
+// Safe JSON parse helper
+function safeJsonParse<T>(value: string | null | undefined, defaultValue: T): T {
+  if (!value) return defaultValue;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return defaultValue;
+  }
+}
+
 // ==========================================
 // EXPORT
 // ==========================================
@@ -122,7 +132,7 @@ productImportExport.get('/export', async (c) => {
       price: Number(p.price),
       comparePrice: p.comparePrice ? Number(p.comparePrice) : null,
       costPrice: p.costPrice ? Number(p.costPrice) : null,
-      prices: JSON.parse(p.prices),
+      prices: safeJsonParse(p.prices, {}),
       sku: p.sku,
       barcode: p.barcode,
       stock: p.stock,
@@ -132,7 +142,7 @@ productImportExport.get('/export', async (c) => {
       featured: p.featured,
       productType: p.productType,
       weight: p.weight ? Number(p.weight) : null,
-      dimensions: p.dimensions ? JSON.parse(p.dimensions) : null,
+      dimensions: safeJsonParse(p.dimensions, null),
       category: p.category ? {
         id: p.category.id,
         name: p.category.name,
@@ -150,10 +160,10 @@ productImportExport.get('/export', async (c) => {
         barcode: v.barcode,
         price: v.price ? Number(v.price) : null,
         comparePrice: v.comparePrice ? Number(v.comparePrice) : null,
-        prices: JSON.parse(v.prices),
+        prices: safeJsonParse(v.prices, {}),
         stock: v.stock,
         imageUrl: v.imageUrl,
-        options: JSON.parse(v.options),
+        options: safeJsonParse(v.options, {}),
         position: v.position,
         isActive: v.isActive,
       })),
@@ -166,7 +176,7 @@ productImportExport.get('/export', async (c) => {
         name: m.name,
         type: m.type,
         required: m.required,
-        options: JSON.parse(m.options),
+        options: safeJsonParse(m.options, []),
         position: m.position,
       })),
       metaTitle: p.metaTitle,

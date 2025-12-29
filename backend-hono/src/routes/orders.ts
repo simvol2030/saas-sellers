@@ -1,20 +1,20 @@
 /**
  * Orders API - Order management and checkout
  *
- * Endpoints:
- * POST   /api/orders/checkout           - Create order from cart
- * GET    /api/orders/my                 - Get user's orders (public)
- * GET    /api/orders/:orderNumber       - Get order by number (public)
- * GET    /api/admin/orders              - List orders (admin)
- * GET    /api/admin/orders/:id          - Get order details (admin)
- * PUT    /api/admin/orders/:id/status   - Update order status (admin)
- * DELETE /api/admin/orders/:id          - Cancel/delete order (admin)
+ * Public Endpoints (mounted at /api/orders):
+ * POST   /checkout              - Create order from cart
+ * GET    /:orderNumber          - Get order by number
+ *
+ * Admin Endpoints (mounted at /api/admin/orders):
+ * GET    /                      - List orders
+ * GET    /:id                   - Get order details
+ * PUT    /:id/status            - Update order status
+ * DELETE /:id                   - Cancel/delete order
  */
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/db.js';
 import { authMiddleware, editorOrAdmin, type AuthUser } from '../middleware/auth.js';
 import { siteMiddleware, requireSite, publicSiteMiddleware } from '../middleware/site.js';
@@ -26,28 +26,23 @@ type TransactionClient = Omit<
   '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
 >;
 
-const orders = new Hono();
+// PUBLIC ROUTER - mounted at /api/orders
+const ordersPublic = new Hono();
+
+// ADMIN ROUTER - mounted at /api/admin/orders
+const ordersAdmin = new Hono();
+
+// Apply auth middleware to all admin routes
+ordersAdmin.use('*', authMiddleware, editorOrAdmin, siteMiddleware, requireSite);
 
 // Session cookie name
 const SESSION_COOKIE = 'cart_session';
-
-// Order statuses
-const ORDER_STATUSES = [
-  'pending',        // Ожидает оплаты
-  'paid',           // Оплачен
-  'processing',     // Обрабатывается
-  'shipped',        // Отправлен
-  'delivered',      // Доставлен
-  'cancelled',      // Отменён
-  'refunded',       // Возврат
-];
 
 // Generate order number
 async function generateOrderNumber(siteId: number): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `ORD-${year}`;
 
-  // Get last order number for this year
   const lastOrder = await prisma.order.findFirst({
     where: {
       siteId,
@@ -67,7 +62,7 @@ async function generateOrderNumber(siteId: number): Promise<string> {
 }
 
 // ============================================
-// PUBLIC CHECKOUT ENDPOINT
+// PUBLIC ENDPOINTS
 // ============================================
 
 // Checkout schema
@@ -88,7 +83,7 @@ const checkoutSchema = z.object({
 });
 
 // POST /api/orders/checkout - Create order from cart
-orders.post('/checkout', publicSiteMiddleware, zValidator('json', checkoutSchema), async (c) => {
+ordersPublic.post('/checkout', publicSiteMiddleware, zValidator('json', checkoutSchema), async (c) => {
   const siteId = c.get('siteId');
   const sessionId = getCookie(c, SESSION_COOKIE);
   const data = c.req.valid('json');
@@ -144,7 +139,6 @@ orders.post('/checkout', publicSiteMiddleware, zValidator('json', checkoutSchema
   }> = [];
 
   for (const item of cart.items) {
-    // Use stored price from CartItem
     const price = Number(item.price);
     const itemTotal = price * item.quantity;
     subtotal += itemTotal;
@@ -194,17 +188,14 @@ orders.post('/checkout', publicSiteMiddleware, zValidator('json', checkoutSchema
         return c.json({ error: 'Promo code usage limit exceeded' }, 400);
       }
 
-      // Calculate discount (type: 'fixed' or 'percent', value: discount amount)
       if (promo.type === 'percent') {
         promoDiscount = subtotal * Number(promo.value) / 100;
       } else {
-        // fixed discount
         promoDiscount = Number(promo.value);
       }
 
       discount += promoDiscount;
 
-      // Increment usage
       await prisma.promoCode.update({
         where: { id: promo.id },
         data: { usedCount: { increment: 1 } },
@@ -213,13 +204,10 @@ orders.post('/checkout', publicSiteMiddleware, zValidator('json', checkoutSchema
   }
 
   const total = subtotal - discount + shippingCost;
-
-  // Generate order number
   const orderNumber = await generateOrderNumber(siteId);
 
   // Create order in transaction
   const order = await prisma.$transaction(async (tx: TransactionClient) => {
-    // Create order
     const newOrder = await tx.order.create({
       data: {
         orderNumber,
@@ -302,7 +290,7 @@ orders.post('/checkout', publicSiteMiddleware, zValidator('json', checkoutSchema
 });
 
 // GET /api/orders/:orderNumber - Get order by number (public)
-orders.get('/:orderNumber', publicSiteMiddleware, async (c) => {
+ordersPublic.get('/:orderNumber', publicSiteMiddleware, async (c) => {
   const siteId = c.get('siteId');
   const orderNumber = c.req.param('orderNumber');
 
@@ -359,11 +347,8 @@ orders.get('/:orderNumber', publicSiteMiddleware, async (c) => {
 // ADMIN ENDPOINTS
 // ============================================
 
-const adminRoutes = new Hono();
-adminRoutes.use('*', authMiddleware, editorOrAdmin, siteMiddleware, requireSite);
-
 // GET /api/admin/orders - List orders
-adminRoutes.get('/', async (c) => {
+ordersAdmin.get('/', async (c) => {
   const siteId = c.get('siteId');
   const page = parseInt(c.req.query('page') || '1');
   const limit = Math.min(parseInt(c.req.query('limit') || '20'), 100);
@@ -384,7 +369,7 @@ adminRoutes.get('/', async (c) => {
     ];
   }
 
-  const [orders, total] = await Promise.all([
+  const [ordersList, total] = await Promise.all([
     prisma.order.findMany({
       where,
       include: {
@@ -397,8 +382,8 @@ adminRoutes.get('/', async (c) => {
     prisma.order.count({ where }),
   ]);
 
-  type OrderWithItems = typeof orders[number];
-  const result = orders.map((o: OrderWithItems) => ({
+  type OrderWithItems = typeof ordersList[number];
+  const result = ordersList.map((o: OrderWithItems) => ({
     id: o.id,
     orderNumber: o.orderNumber,
     email: o.email,
@@ -424,7 +409,7 @@ adminRoutes.get('/', async (c) => {
 });
 
 // GET /api/admin/orders/:id - Get order details
-adminRoutes.get('/:id', async (c) => {
+ordersAdmin.get('/:id', async (c) => {
   const siteId = c.get('siteId');
   const id = parseInt(c.req.param('id'));
 
@@ -518,7 +503,7 @@ const updateStatusSchema = z.object({
 });
 
 // PUT /api/admin/orders/:id/status - Update order status
-adminRoutes.put('/:id/status', zValidator('json', updateStatusSchema), async (c) => {
+ordersAdmin.put('/:id/status', zValidator('json', updateStatusSchema), async (c) => {
   const siteId = c.get('siteId');
   const user = c.get('user') as AuthUser;
   const userId = user?.id;
@@ -533,7 +518,6 @@ adminRoutes.put('/:id/status', zValidator('json', updateStatusSchema), async (c)
     return c.json({ error: 'Order not found' }, 404);
   }
 
-  // Update order status
   const updates: any = { status };
 
   if (status === 'paid' && !order.paidAt) {
@@ -548,13 +532,11 @@ adminRoutes.put('/:id/status', zValidator('json', updateStatusSchema), async (c)
   }
 
   const updatedOrder = await prisma.$transaction(async (tx: TransactionClient) => {
-    // Update order
     const updated = await tx.order.update({
       where: { id },
       data: updates,
     });
 
-    // Add status history
     await tx.orderStatusHistory.create({
       data: {
         orderId: id,
@@ -602,8 +584,8 @@ adminRoutes.put('/:id/status', zValidator('json', updateStatusSchema), async (c)
   });
 });
 
-// DELETE /api/admin/orders/:id - Delete order (soft delete via cancel)
-adminRoutes.delete('/:id', async (c) => {
+// DELETE /api/admin/orders/:id - Delete order
+ordersAdmin.delete('/:id', async (c) => {
   const siteId = c.get('siteId');
   const id = parseInt(c.req.param('id'));
 
@@ -615,7 +597,6 @@ adminRoutes.delete('/:id', async (c) => {
     return c.json({ error: 'Order not found' }, 404);
   }
 
-  // Only allow deletion of pending orders
   if (!['pending', 'cancelled'].includes(order.status)) {
     return c.json({
       error: 'Can only delete pending or cancelled orders',
@@ -643,7 +624,6 @@ adminRoutes.delete('/:id', async (c) => {
     }
   }
 
-  // Delete order (cascade deletes items and history)
   await prisma.order.delete({
     where: { id },
   });
@@ -651,7 +631,5 @@ adminRoutes.delete('/:id', async (c) => {
   return c.json({ message: 'Order deleted' });
 });
 
-// Mount admin routes
-orders.route('/admin', adminRoutes);
-
-export { orders };
+// Export both routers
+export { ordersPublic, ordersAdmin };
