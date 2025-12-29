@@ -500,4 +500,37 @@ media.get('/site-:siteId/:type/:filename', async (c) => {
   }
 });
 
+
+// Legacy /uploads/ route for backward compatibility  
+media.get('/uploads/*', async (c) => {
+  try {
+    const reqPath = c.req.path.replace('/api/media/uploads/', '');
+    const filePath = join(MEDIA_DIR, reqPath);
+    
+    if (reqPath.includes('..')) {
+      return c.json({ error: 'Invalid path' }, 400);
+    }
+    
+    if (!existsSync(filePath)) {
+      return c.json({ error: 'File not found' }, 404);
+    }
+    
+    const stat = statSync(filePath);
+    const ext = extname(reqPath);
+    const mimeType = getMimeType(ext);
+    
+    const stream = createReadStream(filePath);
+    return new Response(Readable.toWeb(stream) as ReadableStream, {
+      headers: {
+        'Content-Type': mimeType,
+        'Content-Length': String(stat.size),
+        'Cache-Control': 'public, max-age=31536000',
+      },
+    });
+  } catch (error) {
+    console.error('Error serving upload:', error);
+    return c.json({ error: 'Failed to serve file' }, 500);
+  }
+});
+
 export default media;
