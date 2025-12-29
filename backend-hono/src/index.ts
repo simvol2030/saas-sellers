@@ -167,6 +167,7 @@ app.route('/api/admin/currencies', currencies);
 app.route('/api/currencies', currencies); // Public currencies (uses /public endpoint)
 app.route('/api/admin/categories', categories);
 app.route('/api/categories', categories); // Public categories (uses /public endpoint)
+app.route('/api/admin/products', productImportExport); // Import/export MUST be before products (/:id catches /export)
 app.route('/api/admin/products', products);
 app.route('/api/products', products); // Public products (uses /public endpoint)
 app.route('/api/cart', cart); // Shopping cart
@@ -181,7 +182,7 @@ app.route('/api/webhooks', webhooks); // Payment webhooks
 // Phase 5: Additional features
 app.route('/api/promo', promoPublic); // Public promo validation
 app.route('/api/admin/promo', promoAdmin); // Admin promo management
-app.route('/api/admin/products', productImportExport); // Import/export (adds /export, /import to products)
+
 app.route('/api/admin/notifications', notifications); // Notification settings
 app.route('/api/admin/stats', stats); // Statistics and analytics
 app.route('/api/reviews', reviews); // Public reviews
