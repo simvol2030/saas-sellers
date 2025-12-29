@@ -584,8 +584,27 @@ products.get('/', authMiddleware, editorOrAdmin, siteMiddleware, requireSite, as
     prisma.product.count({ where }),
   ]);
 
+  // Helper to safely parse JSON fields
+  function safeJsonParse<T>(value: string | null | undefined, defaultValue: T): T {
+    if (!value) return defaultValue;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return defaultValue;
+    }
+  }
+
+  // Parse JSON fields for frontend
+  type ProductItem = typeof items[number];
+  const formattedProducts = items.map((p: ProductItem) => ({
+    ...p,
+    prices: safeJsonParse<Record<string, number>>(p.prices, {}),
+    compareAtPrices: safeJsonParse<Record<string, number> | null>(p.compareAtPrices, null),
+    dimensions: safeJsonParse<Record<string, unknown> | null>(p.dimensions, null),
+  }));
+
   return c.json({
-    products: items,
+    products: formattedProducts,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
