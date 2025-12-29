@@ -639,6 +639,7 @@ products.get('/:id', authMiddleware, editorOrAdmin, siteMiddleware, requireSite,
   type ModifierResult = typeof product.modifiers[number];
 
   const result = {
+    shortDescription: product.shortDesc, // Alias for frontend
     ...product,
     prices: JSON.parse(product.prices),
     dimensions: product.dimensions ? JSON.parse(product.dimensions) : null,
